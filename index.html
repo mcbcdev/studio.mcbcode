@@ -268,6 +268,19 @@
     .code-panel.active {
       display: block;
     }
+    .code-panel textarea {
+      width: 100%;
+      height: 100%;
+      resize: none;
+      border: none;
+      outline: none;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      font-family: "Consolas", "Courier New", monospace;
+      font-size: 14px;
+      line-height: 1.5;
+      padding: 0;
+    }
 
     /* welcome placeholder shown when 0 tabs open */
     #welcome-panel {
@@ -292,6 +305,78 @@
       color: #bebebe;
       font-size: 20px;
       margin: 0;
+    }
+    #welcome-buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+    .welcome-btn {
+      background: #232323;
+      border: 1px solid #3a3a3a;
+      color: #eee;
+      padding: 10px 18px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .welcome-btn:hover {
+      background: #2e2e2e;
+      border-color: #3a7bd5;
+    }
+
+    /* open file popup */
+    #openfile-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    #openfile-overlay.show {
+      display: flex;
+    }
+    #openfile-box {
+      background: #202020;
+      border: 1px solid #3a3a3a;
+      border-radius: 8px;
+      padding: 26px 34px;
+      text-align: center;
+      color: #eee;
+      min-width: 260px;
+    }
+    #openfile-box h2 {
+      margin: 0 0 16px;
+      font-size: 20px;
+    }
+    .openfile-choice {
+      display: block;
+      width: 100%;
+      background: #2e2e2e;
+      border: 1px solid #3a3a3a;
+      color: #eee;
+      padding: 10px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+    .openfile-choice:hover {
+      background: #3a7bd5;
+      border-color: #3a7bd5;
+    }
+    #openfile-close {
+      background: none;
+      border: none;
+      color: #999;
+      cursor: pointer;
+      font-size: 13px;
+      margin-top: 4px;
+    }
+    #openfile-close:hover {
+      color: #eee;
     }
 
     /* placeholder modal for extensions/themes */
@@ -442,6 +527,12 @@
         <div id="welcome-panel" class="show">
           <img src="https://mcbcode.com/img/icons/studio_logo.png" alt="logo">
           <p id="subtext">Welcome to the mcbCode Studio.</p>
+
+          <div id="welcome-buttons">
+            <button class="welcome-btn" id="btn-open-file">Open File</button>
+            <button class="welcome-btn" id="btn-login">Login</button>
+            <button class="welcome-btn" id="btn-new-file">New Blank File</button>
+          </div>
         </div>
         <!-- code panels get added here when a file is opened, example:
         <div class="code-panel" data-panel="tab1">// manifest.json content goes here</div>
@@ -459,6 +550,19 @@
       <button id="placeholder-close">Close</button>
     </div>
   </div>
+
+  <!-- ===== open file choice popup ===== -->
+  <div id="openfile-overlay">
+    <div id="openfile-box">
+      <h2>Open File</h2>
+      <button class="openfile-choice" id="btn-open-local">Open Local File</button>
+      <button class="openfile-choice" id="btn-open-mcbcode">Open mcbCode File</button>
+      <button id="openfile-close">Cancel</button>
+    </div>
+  </div>
+
+  <!-- hidden file input used for "Open Local File" -->
+  <input type="file" id="local-file-input" accept=".js,.mcfunction,.txt,.json,.md" style="display:none">
 
 <script>
   // ================= menu bar dropdowns =================
@@ -532,11 +636,14 @@
       tab.innerHTML = `<span>${label}</span><span class="close-btn" data-close="${id}">&times;</span>`;
       tabBar.appendChild(tab);
 
-      // build the matching code panel
+      // build the matching code panel with an editable textarea inside
       const panel = document.createElement('div');
       panel.className = 'code-panel';
       panel.dataset.panel = id;
-      panel.textContent = content;
+      const textarea = document.createElement('textarea');
+      textarea.value = content;
+      textarea.spellcheck = false;
+      panel.appendChild(textarea);
       codeArea.appendChild(panel);
 
       attachTabEvents(tab);
@@ -544,6 +651,12 @@
     }
 
     activateTab(id);
+  }
+
+  // generates a unique tab id for files opened outside the sidebar (local files, new blank files)
+  let dynamicTabCounter = 1;
+  function nextDynamicId() {
+    return `dyn${dynamicTabCounter++}`;
   }
 
   function attachTabEvents(tab) {
@@ -607,6 +720,57 @@
       icon.classList.add('active');
       showPlaceholder();
     });
+  });
+
+  // ================= welcome panel buttons =================
+  const openfileOverlay = document.getElementById('openfile-overlay');
+  const localFileInput = document.getElementById('local-file-input');
+
+  // "Open File" button -> shows the local / mcbCode choice popup
+  document.getElementById('btn-open-file').addEventListener('click', () => {
+    openfileOverlay.classList.add('show');
+  });
+  document.getElementById('openfile-close').addEventListener('click', () => {
+    openfileOverlay.classList.remove('show');
+  });
+
+  // "Open Local File" -> triggers the hidden file input
+  document.getElementById('btn-open-local').addEventListener('click', () => {
+    localFileInput.click();
+  });
+
+  // once a local file is picked, read it and open it in a new tab
+  localFileInput.addEventListener('change', () => {
+    const file = localFileInput.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const id = nextDynamicId();
+      openTab(id, file.name, reader.result);
+      openfileOverlay.classList.remove('show');
+    };
+    reader.readAsText(file);
+
+    // reset so picking the same file again still fires "change"
+    localFileInput.value = '';
+  });
+
+  // "Open mcbCode File" -> not built yet
+  document.getElementById('btn-open-mcbcode').addEventListener('click', () => {
+    openfileOverlay.classList.remove('show');
+    showPlaceholder();
+  });
+
+  // "Login" -> redirect to the account page
+  document.getElementById('btn-login').addEventListener('click', () => {
+    window.location.href = 'https://mcbcode.com/account?redirectto=https://studio.mcbcode.com';
+  });
+
+  // "New Blank File" -> opens an empty scratch tab to start typing in right away
+  document.getElementById('btn-new-file').addEventListener('click', () => {
+    const id = nextDynamicId();
+    openTab(id, 'untitled', '');
   });
 </script>
 
