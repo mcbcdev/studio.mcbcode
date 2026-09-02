@@ -25,6 +25,11 @@
   <!-- sublime keymap = where multi-cursor shortcuts live: Ctrl/Cmd-D select next occurrence,
        Ctrl/Cmd-Alt-Up/Down add cursor above/below, Alt-Click add a cursor (mouse, built into CM core) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/keymap/sublime.min.js"></script>
+  <!-- linting: red squiggles + gutter markers for syntax errors in .js/.json files -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/lint/lint.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jshint/2.13.6/jshint.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/lint/lint.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/lint/javascript-lint.min.js"></script>
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300..700&display=swap');
 
@@ -435,6 +440,19 @@
     .code-editor .cm-matchhighlight {
       background: rgba(5, 238, 147, 0.15);
     }
+    .code-editor .CodeMirror-lint-marker-error {
+      background: none;
+    }
+    .code-editor .CodeMirror-lint-tooltip {
+      background: var(--bg-4);
+      border: 1px solid var(--border-strong);
+      color: #eee;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 4px 8px;
+      max-width: 400px;
+      z-index: 200;
+    }
 
     /* welcome placeholder shown when 0 tabs open */
     #welcome-panel {
@@ -727,6 +745,232 @@
       background: var(--accent-dim);
     }
 
+    /* ===== custom theme modal ===== */
+    #theme-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    #theme-overlay.show {
+      display: flex;
+    }
+    #theme-box {
+      background: var(--bg-4);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius);
+      padding: 22px 26px;
+      color: #eee;
+      width: 460px;
+      max-width: 92vw;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+    }
+    #theme-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      flex-shrink: 0;
+    }
+    #theme-header h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+    #theme-help-btn {
+      background: var(--bg-6);
+      border: 1px solid var(--border-strong);
+      color: #eee;
+      width: 26px;
+      height: 26px;
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-weight: bold;
+    }
+    #theme-help-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    #theme-grid {
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px 12px;
+      padding-right: 4px;
+      margin-bottom: 14px;
+    }
+    .theme-row-label {
+      font-size: 12px;
+      color: var(--text-sub);
+      align-self: center;
+    }
+    .theme-row-label .var-name {
+      display: block;
+      color: var(--text-muted);
+      font-size: 10px;
+    }
+    #theme-grid input[type="color"] {
+      width: 40px;
+      height: 24px;
+      background: none;
+      border: 1px solid var(--border-strong);
+      cursor: pointer;
+      padding: 0;
+    }
+    #theme-upload-row {
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+      margin-bottom: 14px;
+      flex-shrink: 0;
+    }
+    #theme-upload-row label {
+      display: block;
+      font-size: 12px;
+      color: var(--text-sub);
+      margin-bottom: 6px;
+    }
+    #theme-upload-row input[type="file"] {
+      font-size: 12px;
+      color: var(--text-sub);
+      font-family: var(--font-mono);
+    }
+    #theme-css-filename {
+      display: block;
+      font-size: 11px;
+      color: var(--accent);
+      margin-top: 4px;
+    }
+    #theme-actions {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+      margin-bottom: 10px;
+    }
+    #theme-actions button {
+      flex: 1;
+      background: var(--bg-6);
+      border: 1px solid var(--border-strong);
+      color: #eee;
+      padding: 8px 10px;
+      cursor: pointer;
+      font-size: 13px;
+      font-family: var(--font-mono);
+    }
+    #theme-actions button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    #theme-actions #theme-save {
+      background: var(--accent);
+      color: #06251b;
+      font-weight: bold;
+      border-color: var(--accent);
+    }
+    #theme-actions #theme-save:hover {
+      background: var(--accent-dim);
+      color: #06251b;
+    }
+    #theme-close {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 13px;
+      font-family: var(--font-mono);
+      flex-shrink: 0;
+    }
+    #theme-close:hover {
+      color: #eee;
+    }
+
+    /* theme guide popup */
+    #theme-guide-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      align-items: center;
+      justify-content: center;
+      z-index: 110;
+    }
+    #theme-guide-overlay.show {
+      display: flex;
+    }
+    #theme-guide-box {
+      background: var(--bg-4);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius);
+      padding: 22px 26px;
+      color: #eee;
+      width: 460px;
+      max-width: 92vw;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+    }
+    #theme-guide-box h2 {
+      margin: 0 0 10px;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    #theme-guide-box p {
+      font-size: 13px;
+      color: var(--text-sub);
+      margin: 0 0 12px;
+      flex-shrink: 0;
+    }
+    #theme-guide-box code {
+      color: var(--accent);
+    }
+    #theme-guide-codewrap {
+      position: relative;
+      overflow-y: auto;
+      background: var(--bg-3);
+      border: 1px solid var(--border);
+      margin-bottom: 14px;
+    }
+    #theme-guide-code {
+      margin: 0;
+      padding: 12px;
+      font-size: 12px;
+      font-family: var(--font-mono);
+      color: var(--text-body);
+      white-space: pre;
+    }
+    #theme-guide-copy {
+      position: sticky;
+      top: 8px;
+      float: right;
+      margin-right: 8px;
+      background: var(--bg-6);
+      border: 1px solid var(--border-strong);
+      color: #eee;
+      padding: 4px 10px;
+      cursor: pointer;
+      font-size: 11px;
+      font-family: var(--font-mono);
+    }
+    #theme-guide-copy:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    #theme-guide-close {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 13px;
+      font-family: var(--font-mono);
+      flex-shrink: 0;
+    }
+    #theme-guide-close:hover {
+      color: #eee;
+    }
+
     /* placeholder modal for extensions/themes */
     #placeholder-overlay {
       display: none;
@@ -814,7 +1058,7 @@
     <div class="menu-item" data-menu="themes">
       Themes
       <div class="menu-dropdown">
-        <div data-action="placeholder">Browse Themes</div>
+        <div data-action="open-theme">Custom Theme</div>
       </div>
     </div>
 
@@ -932,6 +1176,43 @@
       <button id="shortcuts-close">Close</button>
     </div>
   </div>
+  <!-- ===== custom theme modal ===== -->
+  <div id="theme-overlay">
+    <div id="theme-box">
+      <div id="theme-header">
+        <h2>Custom Theme</h2>
+        <button id="theme-help-btn" title="How to build a theme">?</button>
+      </div>
+      <div id="theme-grid"></div>
+
+      <div id="theme-upload-row">
+        <label for="theme-css-input">Advanced: upload a custom CSS file (overrides everything above)</label>
+        <input type="file" id="theme-css-input" accept=".css">
+        <span id="theme-css-filename"></span>
+      </div>
+
+      <div id="theme-actions">
+        <button id="theme-reset">Reset to Default</button>
+        <button id="theme-apply">Apply</button>
+        <button id="theme-save">Save</button>
+      </div>
+      <button id="theme-close">Close</button>
+    </div>
+  </div>
+
+  <!-- ===== theme guide / template popup ===== -->
+  <div id="theme-guide-overlay">
+    <div id="theme-guide-box">
+      <h2>Building a Custom Theme</h2>
+      <p>Every color in the studio is a CSS variable. Paste this into a <code>.css</code> file, edit the hex values, then upload it above — or just use the color pickers for a quick version.</p>
+      <div id="theme-guide-codewrap">
+        <button id="theme-guide-copy">Copy</button>
+        <pre id="theme-guide-code"></pre>
+      </div>
+      <button id="theme-guide-close">Close</button>
+    </div>
+  </div>
+
   <!-- ===== coming soon placeholder modal ===== -->
   <div id="placeholder-overlay">
     <div id="placeholder-box">
@@ -1015,9 +1296,9 @@
     saveActiveTab();
   });
 
-  // extensions/themes top-level menu items also open placeholder when clicked directly
+  // extensions top-level menu item still opens placeholder when clicked directly
   document.querySelector('[data-menu="extensions"]').addEventListener('click', showPlaceholder);
-  document.querySelector('[data-menu="themes"]').addEventListener('click', showPlaceholder);
+  document.querySelector('[data-action="open-theme"]').addEventListener('click', () => openThemeModal());
 
   function showPlaceholder() {
     document.getElementById('placeholder-overlay').classList.add('show');
@@ -1148,6 +1429,13 @@
     return 'javascript';
   }
 
+  // js/json get real error-squiggle linting (via JSHint); other modes don't have
+  // a meaningful linter wired up here, so leave them without the gutter
+  function lintableFilename(name) {
+    const ext = (name.split('.').pop() || '').toLowerCase();
+    return ext === 'js' || ext === 'json' || ext === '';
+  }
+
   function markDirty(id, dirty) {
     const entry = editors[id];
     if (!entry) return;
@@ -1194,6 +1482,7 @@
       panel.appendChild(editorWrap);
       codeArea.appendChild(panel);
 
+      const isLintable = lintableFilename(label);
       const cm = CodeMirror(editorWrap, {
         value: content,
         mode: modeForFilename(label),
@@ -1204,6 +1493,8 @@
         styleActiveLine: true,
         indentUnit: 2,
         tabSize: 2,
+        gutters: isLintable ? ['CodeMirror-linenumbers', 'CodeMirror-lint-markers'] : ['CodeMirror-linenumbers'],
+        lint: isLintable ? { esversion: 11, asi: true, undef: false, unused: false } : false,
         extraKeys: {
           'Shift-Tab': 'indentLess',
           'Ctrl-S': () => saveTab(id),
@@ -1589,6 +1880,160 @@
       cloudfileList.innerHTML = `<div class="cloudfile-error">${e.message}</div>`;
     }
   }
+
+  // ================= custom theme system =================
+  // every color the whole UI uses, matched to the :root defaults declared in <style>.
+  // saved to localStorage so it persists across visits, per-browser (not per-account).
+  const THEME_VARS = [
+    { key: '--accent',        label: 'Accent',              default: '#05ee93' },
+    { key: '--accent-dim',    label: 'Accent (dim/hover)',  default: '#04b874' },
+    { key: '--bg-0',          label: 'Activity bar bg',     default: '#141414' },
+    { key: '--bg-1',          label: 'Sidebar bg',          default: '#181818' },
+    { key: '--bg-2',          label: 'Tab bar / menu bg',   default: '#1b1b1b' },
+    { key: '--bg-3',          label: 'Editor bg',           default: '#1e1e1e' },
+    { key: '--bg-4',          label: 'Modal bg',            default: '#202020' },
+    { key: '--bg-5',          label: 'Active tab bg',       default: '#232323' },
+    { key: '--bg-6',          label: 'Hover bg',            default: '#2a2a2a' },
+    { key: '--bg-7',          label: 'Active file/tab bg',  default: '#2e2e2e' },
+    { key: '--border',        label: 'Border',              default: '#2a2a2a' },
+    { key: '--border-strong', label: 'Border (strong)',     default: '#3a3a3a' },
+    { key: '--text-main',     label: 'Main text',           default: '#ffffff' },
+    { key: '--text-sub',      label: 'Subtext',             default: '#bebebe' },
+    { key: '--text-body',     label: 'Editor text',         default: '#d4d4d4' },
+    { key: '--text-dim',      label: 'Dim text',            default: '#999999' },
+    { key: '--text-muted',    label: 'Muted text',          default: '#888888' },
+    { key: '--text-tab',      label: 'Tab/sidebar text',    default: '#aaaaaa' },
+  ];
+
+  const THEME_STORAGE_KEY = 'mcbcode_theme_vars';
+  const THEME_CSS_STORAGE_KEY = 'mcbcode_custom_css';
+
+  function applyThemeVars(varsObj) {
+    THEME_VARS.forEach(v => {
+      if (varsObj[v.key]) document.documentElement.style.setProperty(v.key, varsObj[v.key]);
+    });
+  }
+
+  function applyCustomCss(cssText) {
+    let styleTag = document.getElementById('custom-theme-css');
+    if (!styleTag) {
+      styleTag = document.createElement('style');
+      styleTag.id = 'custom-theme-css';
+      document.head.appendChild(styleTag); // appended last, so it wins over the base stylesheet
+    }
+    styleTag.textContent = cssText || '';
+  }
+
+  // runs once on page load, before the theme modal even exists, so a saved
+  // theme is visible immediately instead of flashing default colors first
+  function loadSavedThemeOnStartup() {
+    try {
+      const saved = localStorage.getItem(THEME_STORAGE_KEY);
+      if (saved) applyThemeVars(JSON.parse(saved));
+    } catch {}
+    try {
+      const savedCss = localStorage.getItem(THEME_CSS_STORAGE_KEY);
+      if (savedCss) applyCustomCss(savedCss);
+    } catch {}
+  }
+  loadSavedThemeOnStartup();
+
+  const themeOverlay = document.getElementById('theme-overlay');
+  const themeGrid = document.getElementById('theme-grid');
+  let pendingCustomCss = null; // holds an uploaded css file's text until Apply/Save is clicked
+
+  function buildThemeGrid() {
+    themeGrid.innerHTML = '';
+    THEME_VARS.forEach(v => {
+      const current = getComputedStyle(document.documentElement).getPropertyValue(v.key).trim() || v.default;
+      const label = document.createElement('div');
+      label.className = 'theme-row-label';
+      label.innerHTML = `${v.label}<span class="var-name">${v.key}</span>`;
+      const input = document.createElement('input');
+      input.type = 'color';
+      input.value = current.length === 7 ? current : v.default; // <input type=color> needs #rrggbb
+      input.dataset.varKey = v.key;
+      themeGrid.appendChild(label);
+      themeGrid.appendChild(input);
+    });
+  }
+
+  function openThemeModal() {
+    buildThemeGrid();
+    document.getElementById('theme-css-filename').textContent = '';
+    pendingCustomCss = null;
+    themeOverlay.classList.add('show');
+  }
+  document.getElementById('theme-close').addEventListener('click', () => {
+    themeOverlay.classList.remove('show');
+  });
+
+  function collectThemeInputVars() {
+    const obj = {};
+    themeGrid.querySelectorAll('input[type="color"]').forEach(input => {
+      obj[input.dataset.varKey] = input.value;
+    });
+    return obj;
+  }
+
+  document.getElementById('theme-apply').addEventListener('click', () => {
+    applyThemeVars(collectThemeInputVars());
+    if (pendingCustomCss !== null) applyCustomCss(pendingCustomCss);
+  });
+
+  document.getElementById('theme-save').addEventListener('click', () => {
+    const vars = collectThemeInputVars();
+    applyThemeVars(vars);
+    localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(vars));
+    if (pendingCustomCss !== null) {
+      applyCustomCss(pendingCustomCss);
+      localStorage.setItem(THEME_CSS_STORAGE_KEY, pendingCustomCss);
+    }
+    themeOverlay.classList.remove('show');
+  });
+
+  document.getElementById('theme-reset').addEventListener('click', () => {
+    THEME_VARS.forEach(v => document.documentElement.style.removeProperty(v.key));
+    applyCustomCss('');
+    localStorage.removeItem(THEME_STORAGE_KEY);
+    localStorage.removeItem(THEME_CSS_STORAGE_KEY);
+    pendingCustomCss = null;
+    document.getElementById('theme-css-filename').textContent = '';
+    buildThemeGrid();
+  });
+
+  document.getElementById('theme-css-input').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      pendingCustomCss = reader.result;
+      document.getElementById('theme-css-filename').textContent = `loaded: ${file.name} (click Apply or Save to use it)`;
+    };
+    reader.readAsText(file);
+  });
+
+  // ================= theme guide/help popup =================
+  const themeGuideOverlay = document.getElementById('theme-guide-overlay');
+  const themeGuideCode = document.getElementById('theme-guide-code');
+
+  document.getElementById('theme-help-btn').addEventListener('click', () => {
+    themeGuideCode.textContent = ':root {\n' +
+      THEME_VARS.map(v => `  ${v.key}: ${v.default};  /* ${v.label} */`).join('\n') +
+      '\n}';
+    themeGuideOverlay.classList.add('show');
+  });
+  document.getElementById('theme-guide-close').addEventListener('click', () => {
+    themeGuideOverlay.classList.remove('show');
+  });
+  document.getElementById('theme-guide-copy').addEventListener('click', () => {
+    navigator.clipboard.writeText(themeGuideCode.textContent).then(() => {
+      const btn = document.getElementById('theme-guide-copy');
+      const original = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = original; }, 1500);
+    });
+  });
 
   // ================= sidebar resizing + snap-close =================
   const sidebarWrap = document.getElementById('sidebar-wrap');
