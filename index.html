@@ -4,17 +4,41 @@
   <link rel="icon" href="https://mcbcode.com/theme/favicon.png">
   <meta name="viewport" content="width=device-width,initial-scale=1" />
 <style>
+    /* ===== theme vars ===== */
+    :root {
+      --accent: #05ee93;
+      --accent-dim: #04b874;
+      --bg-0: #141414;      /* activity bar */
+      --bg-1: #181818;      /* sidebar */
+      --bg-2: #1b1b1b;      /* tab bar / menu bar */
+      --bg-3: #1e1e1e;      /* editor bg */
+      --bg-4: #202020;      /* modals */
+      --bg-5: #232323;      /* active tab / buttons */
+      --bg-6: #2a2a2a;      /* hover */
+      --bg-7: #2e2e2e;      /* active file/tab bg */
+      --border: #2a2a2a;
+      --border-strong: #3a3a3a;
+      --text-main: #ffffff;
+      --text-sub: #bebebe;
+      --text-dim: #999999;
+      --text-body: #d4d4d4;
+      --text-muted: #888888;
+      --text-tab: #aaaaaa;
+      --radius: 4px; /* only used where absolutely needed (modals, popups) */
+      --font-mono: "Consolas", "Courier New", monospace;
+    }
+
     /* ===== kept from original ===== */
     .main-box { 
       font-size: 36px;
-      color: #ffffff;
+      color: var(--text-main);
       text-align: center;
       margin: auto;
       margin-top: 150px;
       margin-bottom: 150px;
     }
     #subtext {
-        color: #bebebe;
+        color: var(--text-sub);
         font-size: 24px;
     }
 
@@ -30,13 +54,14 @@
     body {
       display: flex;
       flex-direction: column;
+      font-family: var(--font-mono);
     }
 
     /* menu bar */
     #menu-bar {
       display: flex;
       align-items: center;
-      background: #1e1e1e;
+      background: var(--bg-2);
       border-bottom: 1px solid #333;
       padding: 0 8px;
       height: 34px;
@@ -51,15 +76,14 @@
     }
     .menu-item {
       position: relative;
-      color: #cfcfcf;
+      color: var(--text-tab);
       font-size: 13px;
       padding: 6px 10px;
       cursor: pointer;
-      border-radius: 4px;
     }
     .menu-item:hover, .menu-item.open {
-      background: #333;
-      color: #fff;
+      background: var(--bg-6);
+      color: var(--text-main);
     }
     .menu-dropdown {
       display: none;
@@ -67,12 +91,10 @@
       top: 100%;
       left: 0;
       background: #252525;
-      border: 1px solid #3a3a3a;
+      border: 1px solid var(--border-strong);
       min-width: 180px;
       z-index: 50;
       box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-      border-radius: 4px;
-      overflow: hidden;
     }
     .menu-item.open .menu-dropdown {
       display: block;
@@ -85,8 +107,8 @@
       white-space: nowrap;
     }
     .menu-dropdown div:hover {
-      background: #3a7bd5;
-      color: #fff;
+      background: var(--accent);
+      color: #06251b;
     }
 
     /* main workspace: activity bar + sidebar + editor area */
@@ -101,8 +123,8 @@
     #activity-bar {
       width: 48px;
       flex-shrink: 0;
-      background: #141414;
-      border-right: 1px solid #2a2a2a;
+      background: var(--bg-0);
+      border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -114,7 +136,6 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      border-radius: 6px;
       cursor: pointer;
       margin-bottom: 4px;
       opacity: 0.6;
@@ -125,13 +146,13 @@
       image-rendering: pixelated;
     }
     .activity-icon:hover {
-      background: #262626;
+      background: var(--bg-6);
       opacity: 1;
     }
     .activity-icon.active {
-      background: #2e2e2e;
+      background: var(--bg-7);
       opacity: 1;
-      border-left: 2px solid #3a7bd5;
+      border-left: 2px solid var(--accent);
     }
     #activity-spacer {
       flex: 1;
@@ -146,9 +167,8 @@
       position: absolute;
       left: 52px;
       bottom: 8px;
-      background: #202020;
-      border: 1px solid #3a3a3a;
-      border-radius: 6px;
+      background: var(--bg-4);
+      border: 1px solid var(--border-strong);
       padding: 14px 18px;
       color: #eee;
       font-size: 13px;
@@ -165,26 +185,39 @@
     }
     #account-popup p {
       margin: 0;
-      color: #999;
+      color: var(--text-dim);
     }
 
-    /* sidebar */
+    /* sidebar (resizable) */
+    #sidebar-wrap {
+      display: flex;
+      flex-shrink: 0;
+      min-width: 0;
+    }
     #sidebar {
       width: 220px;
-      flex-shrink: 0;
-      background: #181818;
-      border-right: 1px solid #2a2a2a;
       overflow-y: auto;
+      overflow-x: hidden;
       font-size: 13px;
-      color: #cfcfcf;
+      color: var(--text-tab);
+      background: var(--bg-1);
+    }
+    /* collapsed state: snapped shut, width 0, no scrollbars */
+    #sidebar-wrap.collapsed #sidebar {
+      width: 0 !important;
+      overflow: hidden;
+    }
+    #sidebar-wrap.collapsed #sidebar-resizer {
+      border-right: 1px solid var(--border);
     }
     #sidebar h3 {
       font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 1px;
-      color: #888;
+      color: var(--text-muted);
       padding: 10px 12px 6px;
       margin: 0;
+      white-space: nowrap;
     }
     .file-item {
       padding: 4px 12px 4px 20px;
@@ -192,11 +225,24 @@
       white-space: nowrap;
     }
     .file-item:hover {
-      background: #2a2a2a;
+      background: var(--bg-6);
     }
     .file-item.active {
-      background: #2e2e2e;
-      color: #fff;
+      background: var(--bg-7);
+      color: var(--text-main);
+    }
+
+    /* the drag handle between sidebar and editor */
+    #sidebar-resizer {
+      width: 4px;
+      flex-shrink: 0;
+      cursor: col-resize;
+      background: var(--bg-1);
+      border-right: 1px solid var(--border);
+    }
+    #sidebar-resizer:hover, #sidebar-resizer.dragging {
+      background: var(--accent);
+      border-right-color: var(--accent);
     }
 
     /* editor area = tabs + code area */
@@ -210,8 +256,8 @@
     /* tab bar */
     #tab-bar {
       display: flex;
-      background: #1b1b1b;
-      border-bottom: 1px solid #2a2a2a;
+      background: var(--bg-2);
+      border-bottom: 1px solid var(--border);
       overflow-x: auto;
       flex-shrink: 0;
       -webkit-user-select: none;
@@ -223,9 +269,9 @@
       gap: 8px;
       padding: 8px 12px;
       font-size: 13px;
-      color: #aaa;
-      background: #1b1b1b;
-      border-right: 1px solid #2a2a2a;
+      color: var(--text-tab);
+      background: var(--bg-2);
+      border-right: 1px solid var(--border);
       cursor: pointer;
       white-space: nowrap;
     }
@@ -233,15 +279,20 @@
       color: #eee;
     }
     .tab.active {
-      background: #232323;
-      color: #fff;
-      border-top: 2px solid #3a7bd5;
+      background: var(--bg-5);
+      color: var(--text-main);
+      border-top: 2px solid var(--accent);
+    }
+    .tab .tab-label[contenteditable="true"] {
+      outline: 1px solid var(--accent);
+      background: var(--bg-3);
+      padding: 0 3px;
+      cursor: text;
     }
     .tab .close-btn {
       opacity: 0.6;
       font-size: 12px;
       padding: 0 2px;
-      border-radius: 3px;
     }
     .tab .close-btn:hover {
       opacity: 1;
@@ -258,28 +309,47 @@
       display: none;
       height: 100%;
       width: 100%;
-      padding: 16px;
-      color: #d4d4d4;
-      font-family: "Consolas", "Courier New", monospace;
-      font-size: 14px;
-      overflow: auto;
-      white-space: pre-wrap;
+      color: var(--text-body);
+      overflow: hidden;
     }
     .code-panel.active {
-      display: block;
+      display: flex;
+    }
+    /* line numbers + textarea, no stray padding around the editing area */
+    .code-editor {
+      display: flex;
+      width: 100%;
+      height: 100%;
+    }
+    .line-numbers {
+      flex-shrink: 0;
+      padding: 0 8px 0 12px;
+      background: var(--bg-3);
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      line-height: 1.5;
+      text-align: right;
+      overflow: hidden;
+      -webkit-user-select: none;
+      user-select: none;
+      white-space: pre;
     }
     .code-panel textarea {
+      flex: 1;
       width: 100%;
       height: 100%;
       resize: none;
       border: none;
       outline: none;
-      background: #1e1e1e;
-      color: #d4d4d4;
-      font-family: "Consolas", "Courier New", monospace;
+      background: var(--bg-3);
+      color: var(--text-body);
+      font-family: var(--font-mono);
       font-size: 14px;
       line-height: 1.5;
-      padding: 0;
+      padding: 0 12px 0 8px;
+      margin: 0;
+      overflow: auto;
     }
 
     /* welcome placeholder shown when 0 tabs open */
@@ -291,7 +361,7 @@
       justify-content: center;
       flex-direction: column;
       text-align: center;
-      color: #ffffff;
+      color: var(--text-main);
     }
     #welcome-panel.show {
       display: flex;
@@ -302,7 +372,7 @@
       margin-bottom: 10px;
     }
     #welcome-panel p {
-      color: #bebebe;
+      color: var(--text-sub);
       font-size: 20px;
       margin: 0;
     }
@@ -312,17 +382,18 @@
       margin-top: 24px;
     }
     .welcome-btn {
-      background: #232323;
-      border: 1px solid #3a3a3a;
+      background: var(--bg-5);
+      border: 1px solid var(--border-strong);
       color: #eee;
       padding: 10px 18px;
-      border-radius: 6px;
       cursor: pointer;
       font-size: 14px;
+      font-family: var(--font-mono);
     }
     .welcome-btn:hover {
-      background: #2e2e2e;
-      border-color: #3a7bd5;
+      background: var(--bg-7);
+      border-color: var(--accent);
+      color: var(--accent);
     }
 
     /* open file popup */
@@ -339,9 +410,9 @@
       display: flex;
     }
     #openfile-box {
-      background: #202020;
-      border: 1px solid #3a3a3a;
-      border-radius: 8px;
+      background: var(--bg-4);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius);
       padding: 26px 34px;
       text-align: center;
       color: #eee;
@@ -354,26 +425,28 @@
     .openfile-choice {
       display: block;
       width: 100%;
-      background: #2e2e2e;
-      border: 1px solid #3a3a3a;
+      background: var(--bg-7);
+      border: 1px solid var(--border-strong);
       color: #eee;
       padding: 10px 14px;
-      border-radius: 6px;
       cursor: pointer;
       font-size: 14px;
+      font-family: var(--font-mono);
       margin-bottom: 10px;
     }
     .openfile-choice:hover {
-      background: #3a7bd5;
-      border-color: #3a7bd5;
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #06251b;
     }
     #openfile-close {
       background: none;
       border: none;
-      color: #999;
+      color: var(--text-dim);
       cursor: pointer;
       font-size: 13px;
       margin-top: 4px;
+      font-family: var(--font-mono);
     }
     #openfile-close:hover {
       color: #eee;
@@ -393,9 +466,9 @@
       display: flex;
     }
     #placeholder-box {
-      background: #202020;
-      border: 1px solid #3a3a3a;
-      border-radius: 8px;
+      background: var(--bg-4);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius);
       padding: 30px 40px;
       text-align: center;
       color: #eee;
@@ -406,21 +479,22 @@
       font-size: 20px;
     }
     #placeholder-box p {
-      color: #999;
+      color: var(--text-dim);
       font-size: 14px;
       margin: 0 0 16px;
     }
     #placeholder-box button {
-      background: #3a7bd5;
+      background: var(--accent);
       border: none;
-      color: #fff;
+      color: #06251b;
       padding: 8px 18px;
-      border-radius: 4px;
       cursor: pointer;
       font-size: 13px;
+      font-family: var(--font-mono);
+      font-weight: bold;
     }
     #placeholder-box button:hover {
-      background: #2f66b3;
+      background: var(--accent-dim);
     }
 </style>
 <body>
@@ -500,14 +574,17 @@
       </div>
     </div>
 
-    <!-- ===== sidebar / file explorer ===== -->
-    <div id="sidebar">
-      <h3>Explorer</h3>
-      <div class="file-item" data-file="tab1" data-label="manifest.json" data-content="// manifest.json content goes here">manifest.json</div>
-      <div class="file-item" data-file="tab2" data-label="main.js" data-content="// main.js content goes here">main.js</div>
-      <div class="file-item" data-file="tab3" data-label="README.md" data-content="# README.md content goes here">README.md</div>
-      <!-- add more file-items here, just give each one a unique data-file value
-           that matches a tab/code-panel below -->
+    <!-- ===== sidebar / file explorer (resizable) ===== -->
+    <div id="sidebar-wrap">
+      <div id="sidebar">
+        <h3>Explorer</h3>
+        <div class="file-item" data-file="tab1" data-label="manifest.json" data-content="// manifest.json content goes here">manifest.json</div>
+        <div class="file-item" data-file="tab2" data-label="main.js" data-content="// main.js content goes here">main.js</div>
+        <div class="file-item" data-file="tab3" data-label="README.md" data-content="# README.md content goes here">README.md</div>
+        <!-- add more file-items here, just give each one a unique data-file value
+             that matches a tab/code-panel below -->
+      </div>
+      <div id="sidebar-resizer"></div>
     </div>
 
     <!-- ===== editor area: tabs + code ===== -->
@@ -517,9 +594,10 @@
         <!-- tabs start closed, opened by clicking a file in the sidebar -->
         <!-- example of a tab's structure once opened:
         <div class="tab active" data-tab="tab1">
-          <span>manifest.json</span>
+          <span class="tab-label">manifest.json</span>
           <span class="close-btn" data-close="tab1">&times;</span>
         </div>
+        double-clicking .tab-label makes it contenteditable so the user can rename the tab (and its file entry)
         -->
       </div>
 
@@ -535,7 +613,12 @@
           </div>
         </div>
         <!-- code panels get added here when a file is opened, example:
-        <div class="code-panel" data-panel="tab1">// manifest.json content goes here</div>
+        <div class="code-panel" data-panel="tab1">
+          <div class="code-editor">
+            <div class="line-numbers">1</div>
+            <textarea>// manifest.json content goes here</textarea>
+          </div>
+        </div>
         -->
       </div>
 
@@ -624,6 +707,14 @@
     updateWelcomeVisibility();
   }
 
+  // ================= line numbers helper =================
+  function syncLineNumbers(textarea, lineNumbersEl) {
+    const lineCount = textarea.value.split('\n').length;
+    let nums = '';
+    for (let i = 1; i <= lineCount; i++) nums += i + '\n';
+    lineNumbersEl.textContent = nums.trim() === '' ? '1' : nums;
+  }
+
   // ================= tabs: opening (from sidebar) =================
   function openTab(id, label, content) {
     let tab = document.querySelector(`.tab[data-tab="${id}"]`);
@@ -633,21 +724,38 @@
       tab = document.createElement('div');
       tab.className = 'tab';
       tab.dataset.tab = id;
-      tab.innerHTML = `<span>${label}</span><span class="close-btn" data-close="${id}">&times;</span>`;
+      tab.innerHTML = `<span class="tab-label">${label}</span><span class="close-btn" data-close="${id}">&times;</span>`;
       tabBar.appendChild(tab);
 
-      // build the matching code panel with an editable textarea inside
+      // build the matching code panel: line numbers + editable textarea, no extra padding around it
       const panel = document.createElement('div');
       panel.className = 'code-panel';
       panel.dataset.panel = id;
+
+      const editorWrap = document.createElement('div');
+      editorWrap.className = 'code-editor';
+
+      const lineNumbers = document.createElement('div');
+      lineNumbers.className = 'line-numbers';
+
       const textarea = document.createElement('textarea');
       textarea.value = content;
       textarea.spellcheck = false;
-      panel.appendChild(textarea);
+
+      editorWrap.appendChild(lineNumbers);
+      editorWrap.appendChild(textarea);
+      panel.appendChild(editorWrap);
       codeArea.appendChild(panel);
+
+      syncLineNumbers(textarea, lineNumbers);
+      textarea.addEventListener('input', () => syncLineNumbers(textarea, lineNumbers));
+      textarea.addEventListener('scroll', () => {
+        lineNumbers.scrollTop = textarea.scrollTop;
+      });
 
       attachTabEvents(tab);
       attachCloseEvent(tab.querySelector('.close-btn'));
+      attachRenameEvent(tab.querySelector('.tab-label'), id);
     }
 
     activateTab(id);
@@ -662,7 +770,39 @@
   function attachTabEvents(tab) {
     tab.addEventListener('click', (e) => {
       if (e.target.classList.contains('close-btn')) return;
+      if (e.target.isContentEditable) return;
       activateTab(tab.dataset.tab);
+    });
+  }
+
+  // ================= tabs: renaming (double-click the label) =================
+  function attachRenameEvent(labelEl, id) {
+    labelEl.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      labelEl.contentEditable = 'true';
+      labelEl.focus();
+      document.execCommand('selectAll', false, null);
+    });
+
+    function finishRename() {
+      labelEl.contentEditable = 'false';
+      const newName = labelEl.textContent.trim() || 'untitled';
+      labelEl.textContent = newName;
+
+      // keep the sidebar file entry (if any) in sync with the new name
+      const fileItem = document.querySelector(`.file-item[data-file="${id}"]`);
+      if (fileItem) {
+        fileItem.textContent = newName;
+        fileItem.dataset.label = newName;
+      }
+    }
+
+    labelEl.addEventListener('blur', finishRename);
+    labelEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        labelEl.blur();
+      }
     });
   }
 
@@ -771,6 +911,52 @@
   document.getElementById('btn-new-file').addEventListener('click', () => {
     const id = nextDynamicId();
     openTab(id, 'untitled', '');
+  });
+
+  // ================= sidebar resizing + snap-close =================
+  const sidebarWrap = document.getElementById('sidebar-wrap');
+  const sidebar = document.getElementById('sidebar');
+  const sidebarResizer = document.getElementById('sidebar-resizer');
+
+  const SIDEBAR_MIN = 120;   // below this while dragging, it snaps closed
+  const SIDEBAR_MAX = 480;
+  const SIDEBAR_SNAP_CLOSED_AT = 70; // px width that counts as "small enough to snap shut"
+  const SIDEBAR_REOPEN_WIDTH = 220;  // width restored when re-expanded from collapsed
+
+  let isDraggingSidebar = false;
+
+  sidebarResizer.addEventListener('mousedown', (e) => {
+    // if collapsed, clicking the resizer re-opens the sidebar instead of dragging from 0
+    if (sidebarWrap.classList.contains('collapsed')) {
+      sidebarWrap.classList.remove('collapsed');
+      sidebar.style.width = SIDEBAR_REOPEN_WIDTH + 'px';
+      return;
+    }
+    isDraggingSidebar = true;
+    sidebarResizer.classList.add('dragging');
+    document.body.style.userSelect = 'none';
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isDraggingSidebar) return;
+
+    const activityBarWidth = document.getElementById('activity-bar').offsetWidth;
+    let newWidth = e.clientX - activityBarWidth;
+
+    if (newWidth < SIDEBAR_SNAP_CLOSED_AT) {
+      sidebarWrap.classList.add('collapsed');
+      return;
+    }
+    sidebarWrap.classList.remove('collapsed');
+    newWidth = Math.max(SIDEBAR_MIN, Math.min(SIDEBAR_MAX, newWidth));
+    sidebar.style.width = newWidth + 'px';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!isDraggingSidebar) return;
+    isDraggingSidebar = false;
+    sidebarResizer.classList.remove('dragging');
+    document.body.style.userSelect = '';
   });
 </script>
 
