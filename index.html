@@ -18,6 +18,8 @@
        Ctrl/Cmd-Alt-Up/Down add cursor above/below, Alt-Click add a cursor (mouse, built into CM core) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/keymap/sublime.min.js"></script>
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300..700&display=swap');
+
     /* ===== theme vars ===== */
     :root {
       --accent: #05ee93;
@@ -39,7 +41,7 @@
       --text-muted: #888888;
       --text-tab: #aaaaaa;
       --radius: 4px; /* only used where absolutely needed (modals, popups) */
-      --font-mono: "Consolas", "Courier New", monospace;
+      --font-mono: "Fira Code", "Consolas", "Courier New", monospace;
     }
 
     /* ===== kept from original ===== */
@@ -489,8 +491,40 @@
       overflow-y: auto;
     }
     #shortcuts-box h2 {
-      margin: 0 0 14px;
+      margin: 0;
       font-size: 20px;
+    }
+    #shortcuts-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+    #platform-toggle {
+      display: flex;
+      border: 1px solid var(--border-strong);
+      flex-shrink: 0;
+    }
+    .platform-btn {
+      background: var(--bg-5);
+      border: none;
+      color: var(--text-sub);
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 12px;
+      font-family: var(--font-mono);
+    }
+    .platform-btn + .platform-btn {
+      border-left: 1px solid var(--border-strong);
+    }
+    .platform-btn:hover {
+      color: #eee;
+    }
+    .platform-btn.active {
+      background: var(--accent);
+      color: #06251b;
+      font-weight: bold;
     }
     .shortcuts-list {
       display: flex;
@@ -702,20 +736,26 @@
   <!-- ===== keyboard shortcuts modal ===== -->
   <div id="shortcuts-overlay">
     <div id="shortcuts-box">
-      <h2>Keyboard Shortcuts</h2>
+      <div id="shortcuts-header">
+        <h2>Keyboard Shortcuts</h2>
+        <div id="platform-toggle">
+          <button class="platform-btn active" data-platform="win">Windows</button>
+          <button class="platform-btn" data-platform="mac">Mac</button>
+        </div>
+      </div>
       <div class="shortcuts-list">
-        <div class="shortcut-row"><span>Select next occurrence (multi-cursor)</span><span class="keys">Ctrl/Cmd + D</span></div>
-        <div class="shortcut-row"><span>Add cursor above / below</span><span class="keys">Ctrl/Cmd + Alt + Up / Down</span></div>
-        <div class="shortcut-row"><span>Add cursor at click</span><span class="keys">Alt + Click</span></div>
-        <div class="shortcut-row"><span>Column select (box selection)</span><span class="keys">Alt + Shift + Drag</span></div>
-        <div class="shortcut-row"><span>Select all occurrences</span><span class="keys">Ctrl/Cmd + Shift + L</span></div>
-        <div class="shortcut-row"><span>Move line up / down</span><span class="keys">Ctrl/Cmd + Alt + Shift + Up / Down</span></div>
-        <div class="shortcut-row"><span>Duplicate line</span><span class="keys">Ctrl/Cmd + Shift + D</span></div>
-        <div class="shortcut-row"><span>Toggle line comment</span><span class="keys">Ctrl/Cmd + /</span></div>
-        <div class="shortcut-row"><span>Find</span><span class="keys">Ctrl/Cmd + F</span></div>
-        <div class="shortcut-row"><span>Find and replace</span><span class="keys">Ctrl/Cmd + Alt + F</span></div>
-        <div class="shortcut-row"><span>Indent / outdent selection</span><span class="keys">Tab / Shift + Tab</span></div>
-        <div class="shortcut-row"><span>Rename tab</span><span class="keys">Double-click tab name</span></div>
+        <div class="shortcut-row"><span>Select next occurrence (multi-cursor)</span><span class="keys" data-win="Ctrl + D" data-mac="Cmd + D">Ctrl + D</span></div>
+        <div class="shortcut-row"><span>Add cursor above / below</span><span class="keys" data-win="Ctrl + Alt + Up / Down" data-mac="Cmd + Option + Up / Down">Ctrl + Alt + Up / Down</span></div>
+        <div class="shortcut-row"><span>Add cursor at click</span><span class="keys" data-win="Alt + Click" data-mac="Option + Click">Alt + Click</span></div>
+        <div class="shortcut-row"><span>Column select (box selection)</span><span class="keys" data-win="Alt + Shift + Drag" data-mac="Option + Shift + Drag">Alt + Shift + Drag</span></div>
+        <div class="shortcut-row"><span>Select all occurrences</span><span class="keys" data-win="Ctrl + Shift + L" data-mac="Cmd + Shift + L">Ctrl + Shift + L</span></div>
+        <div class="shortcut-row"><span>Move line up / down</span><span class="keys" data-win="Ctrl + Alt + Shift + Up / Down" data-mac="Cmd + Option + Shift + Up / Down">Ctrl + Alt + Shift + Up / Down</span></div>
+        <div class="shortcut-row"><span>Duplicate line</span><span class="keys" data-win="Ctrl + Shift + D" data-mac="Cmd + Shift + D">Ctrl + Shift + D</span></div>
+        <div class="shortcut-row"><span>Toggle line comment</span><span class="keys" data-win="Ctrl + /" data-mac="Cmd + /">Ctrl + /</span></div>
+        <div class="shortcut-row"><span>Find</span><span class="keys" data-win="Ctrl + F" data-mac="Cmd + F">Ctrl + F</span></div>
+        <div class="shortcut-row"><span>Find and replace</span><span class="keys" data-win="Ctrl + Alt + F" data-mac="Cmd + Option + F">Ctrl + Alt + F</span></div>
+        <div class="shortcut-row"><span>Indent / outdent selection</span><span class="keys" data-win="Tab / Shift + Tab" data-mac="Tab / Shift + Tab">Tab / Shift + Tab</span></div>
+        <div class="shortcut-row"><span>Rename tab</span><span class="keys" data-win="Double-click tab name" data-mac="Double-click tab name">Double-click tab name</span></div>
       </div>
       <button id="shortcuts-close">Close</button>
     </div>
@@ -786,6 +826,27 @@
   document.getElementById('shortcuts-close').addEventListener('click', () => {
     document.getElementById('shortcuts-overlay').classList.remove('show');
   });
+
+  // ================= shortcuts: windows/mac toggle =================
+  const platformBtns = document.querySelectorAll('.platform-btn');
+  const keySpans = document.querySelectorAll('.shortcuts-list .keys');
+
+  function setShortcutPlatform(platform) {
+    keySpans.forEach(el => {
+      el.textContent = platform === 'mac' ? el.dataset.mac : el.dataset.win;
+    });
+    platformBtns.forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.platform === platform);
+    });
+  }
+
+  platformBtns.forEach(btn => {
+    btn.addEventListener('click', () => setShortcutPlatform(btn.dataset.platform));
+  });
+
+  // auto-detect so mac users see Cmd/Option by default, windows users see Ctrl/Alt
+  const isMac = navigator.platform.toUpperCase().includes('MAC') || navigator.userAgent.toUpperCase().includes('MAC');
+  setShortcutPlatform(isMac ? 'mac' : 'win');
 
   // ================= welcome panel + tab state =================
   const tabBar = document.getElementById('tab-bar');
