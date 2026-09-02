@@ -211,6 +211,21 @@
       margin: 0;
       color: var(--text-dim);
     }
+    #account-popup button {
+      margin-top: 10px;
+      background: var(--bg-6);
+      border: 1px solid var(--border-strong);
+      color: #eee;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 12px;
+      font-family: var(--font-mono);
+      width: 100%;
+    }
+    #account-popup button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
 
     /* sidebar (resizable) */
     #sidebar-wrap {
@@ -313,6 +328,17 @@
       padding: 0 3px;
       cursor: text;
     }
+    .tab .dirty-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: none;
+      flex-shrink: 0;
+    }
+    .tab.dirty .dirty-dot {
+      display: block;
+    }
     .tab .close-btn {
       opacity: 0.6;
       font-size: 12px;
@@ -335,14 +361,44 @@
       width: 100%;
       color: var(--text-body);
       overflow: hidden;
+      flex-direction: column;
     }
     .code-panel.active {
       display: flex;
     }
+    /* small status strip under a cloud-linked file (save state) */
+    .code-status {
+      flex-shrink: 0;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 12px;
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--bg-2);
+      border-bottom: 1px solid var(--border);
+    }
+    .code-status.show {
+      display: flex;
+    }
+    .code-status button {
+      background: var(--bg-6);
+      border: 1px solid var(--border-strong);
+      color: #eee;
+      padding: 2px 8px;
+      cursor: pointer;
+      font-size: 11px;
+      font-family: var(--font-mono);
+    }
+    .code-status button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
     /* CodeMirror mount point — fills the panel, no stray padding around it */
     .code-editor {
       width: 100%;
-      height: 100%;
+      flex: 1;
+      min-height: 0;
     }
     .code-editor .CodeMirror {
       width: 100%;
@@ -471,6 +527,103 @@
       font-family: var(--font-mono);
     }
     #openfile-close:hover {
+      color: #eee;
+    }
+
+    /* ===== cloud file browser popup ===== */
+    #cloudfile-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    #cloudfile-overlay.show {
+      display: flex;
+    }
+    #cloudfile-box {
+      background: var(--bg-4);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius);
+      padding: 22px 26px;
+      color: #eee;
+      width: 420px;
+      max-width: 92vw;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+    }
+    #cloudfile-box h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    #cloudfile-list {
+      overflow-y: auto;
+      flex: 1;
+      min-height: 100px;
+      border: 1px solid var(--border);
+    }
+    .cloudfile-section-label {
+      padding: 8px 12px 4px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      background: var(--bg-2);
+    }
+    .cloudfile-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      color: #ddd;
+      border-bottom: 1px solid var(--border);
+    }
+    .cloudfile-row:hover {
+      background: var(--bg-6);
+    }
+    .cloudfile-row img {
+      width: 16px;
+      height: 16px;
+      image-rendering: pixelated;
+      flex-shrink: 0;
+    }
+    .cloudfile-row .cf-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .cloudfile-row .cf-id {
+      color: #454545;
+      margin-left: auto;
+      flex-shrink: 0;
+      font-size: 12px;
+    }
+    .cloudfile-empty, .cloudfile-loading, .cloudfile-error {
+      padding: 20px 12px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+    .cloudfile-error {
+      color: #ff6b6b;
+    }
+    #cloudfile-close {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 13px;
+      margin-top: 10px;
+      font-family: var(--font-mono);
+      flex-shrink: 0;
+    }
+    #cloudfile-close:hover {
       color: #eee;
     }
 
@@ -622,9 +775,9 @@
     <div class="menu-item" data-menu="file">
       File
       <div class="menu-dropdown">
-        <div data-action="placeholder">New File</div>
-        <div data-action="placeholder">Open File</div>
-        <div data-action="placeholder">Save</div>
+        <div data-action="new-file">New File</div>
+        <div data-action="open-file">Open File</div>
+        <div data-action="save-file">Save</div>
       </div>
     </div>
 
@@ -689,8 +842,9 @@
         <img src="https://mcbcode.com/img/icons/blank-transparent.png" alt="account">
       </div>
       <div id="account-popup">
-        <h4>Account</h4>
-        <p>coming soon</p>
+        <h4 id="account-popup-title">Account</h4>
+        <p id="account-popup-body">checking login status...</p>
+        <button id="account-popup-btn" style="display:none;">Login</button>
       </div>
     </div>
 
@@ -714,10 +868,12 @@
         <!-- tabs start closed, opened by clicking a file in the sidebar -->
         <!-- example of a tab's structure once opened:
         <div class="tab active" data-tab="tab1">
+          <span class="dirty-dot"></span>
           <span class="tab-label">manifest.json</span>
           <span class="close-btn" data-close="tab1">&times;</span>
         </div>
-        double-clicking .tab-label makes it contenteditable so the user can rename the tab (and its file entry)
+        double-clicking .tab-label makes it contenteditable so the user can rename the tab (local display name only —
+        does not rename the file in the database, since a rename-on-server endpoint isn't wired up here yet)
         -->
       </div>
 
@@ -734,7 +890,8 @@
         </div>
         <!-- code panels get added here when a file is opened, example:
         <div class="code-panel" data-panel="tab1">
-          <div class="code-editor"></div>  <-- CodeMirror mounts into this div -->
+          <div class="code-status"></div>          <-- shows "cloud file", last saved time, Save button
+          <div class="code-editor"></div>          <-- CodeMirror mounts into this div
         </div>
         -->
       </div>
@@ -763,7 +920,8 @@
         <div class="shortcut-row"><span>Find</span><span class="keys" data-win="Ctrl + F" data-mac="Cmd + F">Ctrl + F</span></div>
         <div class="shortcut-row"><span>Find and replace</span><span class="keys" data-win="Ctrl + Alt + F" data-mac="Cmd + Option + F">Ctrl + Alt + F</span></div>
         <div class="shortcut-row"><span>Indent / outdent selection</span><span class="keys" data-win="Tab / Shift + Tab" data-mac="Tab / Shift + Tab">Tab / Shift + Tab</span></div>
-        <div class="shortcut-row"><span>Rename tab</span><span class="keys" data-win="Double-click tab name" data-mac="Double-click tab name">Double-click tab name</span></div>
+        <div class="shortcut-row"><span>Save (cloud files sync to your account)</span><span class="keys" data-win="Ctrl + S" data-mac="Cmd + S">Ctrl + S</span></div>
+        <div class="shortcut-row"><span>Rename tab (display name only)</span><span class="keys" data-win="Double-click tab name" data-mac="Double-click tab name">Double-click tab name</span></div>
       </div>
       <button id="shortcuts-close">Close</button>
     </div>
@@ -787,10 +945,36 @@
     </div>
   </div>
 
+  <!-- ===== cloud file browser popup ===== -->
+  <div id="cloudfile-overlay">
+    <div id="cloudfile-box">
+      <h2 id="cloudfile-title">Open mcbCode File</h2>
+      <div id="cloudfile-list"></div>
+      <button id="cloudfile-close">Cancel</button>
+    </div>
+  </div>
+
   <!-- hidden file input used for "Open Local File" -->
   <input type="file" id="local-file-input" accept=".js,.mcfunction,.txt,.json,.md" style="display:none">
 
 <script>
+  // ================= backend config =================
+  // the actual API worker this studio talks to. every request needs
+  // credentials:'include' so the mcb_session cookie (Domain=.mcbcode.com) gets sent.
+  const API_BASE = 'https://auth.mcbcode.com';
+
+  async function api(path, options = {}) {
+    const res = await fetch(API_BASE + path, {
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+      ...options
+    });
+    let data = null;
+    try { data = await res.json(); } catch {}
+    if (!res.ok) throw new Error((data && data.error) || `Request failed (${res.status})`);
+    return data;
+  }
+
   // ================= menu bar dropdowns =================
   // only menu items with an actual dropdown inside toggle open/close
   const menuItems = document.querySelectorAll('.menu-item:has(.menu-dropdown)');
@@ -809,11 +993,20 @@
     menuItems.forEach(m => m.classList.remove('open'));
   });
 
-  // any dropdown item with data-action="placeholder" opens the coming soon modal
+  // File > New File / Open File / Save route to the real actions;
+  // everything else still shows the coming soon modal
   document.querySelectorAll('[data-action="placeholder"]').forEach(el => {
-    el.addEventListener('click', () => {
-      showPlaceholder();
-    });
+    el.addEventListener('click', () => showPlaceholder());
+  });
+  document.querySelector('[data-action="new-file"]').addEventListener('click', () => {
+    const id = nextDynamicId();
+    openTab(id, 'untitled', '');
+  });
+  document.querySelector('[data-action="open-file"]').addEventListener('click', () => {
+    document.getElementById('openfile-overlay').classList.add('show');
+  });
+  document.querySelector('[data-action="save-file"]').addEventListener('click', () => {
+    saveActiveTab();
   });
 
   // extensions/themes top-level menu items also open placeholder when clicked directly
@@ -856,6 +1049,49 @@
   const isMac = navigator.platform.toUpperCase().includes('MAC') || navigator.userAgent.toUpperCase().includes('MAC');
   setShortcutPlatform(isMac ? 'mac' : 'win');
 
+  // ================= auth state =================
+  let currentUser = null; // null = logged out, otherwise the object /me returns
+
+  async function checkAuth() {
+    try {
+      currentUser = await api('/me');
+    } catch {
+      currentUser = null;
+    }
+    updateAuthUI();
+  }
+
+  function updateAuthUI() {
+    const popupTitle = document.getElementById('account-popup-title');
+    const popupBody = document.getElementById('account-popup-body');
+    const popupBtn = document.getElementById('account-popup-btn');
+    const loginBtn = document.getElementById('btn-login');
+
+    if (currentUser) {
+      popupTitle.textContent = currentUser.username || 'Account';
+      popupBody.textContent = `${currentUser.points || 0} points${currentUser.is_obsidian ? ' · Obsidian' : ''}`;
+      popupBtn.textContent = 'Log out';
+      popupBtn.style.display = 'block';
+      popupBtn.onclick = async () => {
+        await api('/logout', { method: 'POST' });
+        currentUser = null;
+        updateAuthUI();
+      };
+      loginBtn.textContent = 'Account';
+    } else {
+      popupTitle.textContent = 'Account';
+      popupBody.textContent = 'not logged in';
+      popupBtn.textContent = 'Login';
+      popupBtn.style.display = 'block';
+      popupBtn.onclick = () => {
+        window.location.href = 'https://mcbcode.com/account?redirectto=https://studio.mcbcode.com';
+      };
+      loginBtn.textContent = 'Login';
+    }
+  }
+
+  checkAuth();
+
   // ================= welcome panel + tab state =================
   const tabBar = document.getElementById('tab-bar');
   const codeArea = document.getElementById('code-area');
@@ -881,14 +1117,16 @@
 
     // CodeMirror sizes itself based on its container at creation time, so a fresh
     // instance mounted while its tab was hidden renders broken until this is called
-    const cm = editors[id];
-    if (cm) {
-      setTimeout(() => { cm.refresh(); cm.focus(); }, 0);
+    const entry = editors[id];
+    if (entry) {
+      setTimeout(() => { entry.cm.refresh(); entry.cm.focus(); }, 0);
     }
   }
 
-  // ================= CodeMirror setup =================
-  // keeps one CodeMirror instance per open tab id, so switching tabs doesn't rebuild them
+  // ================= CodeMirror + cloud-file tracking =================
+  // one entry per open tab id: { cm, saveId, dirty }
+  // saveId is set only for files opened from the cloud browser — that's what
+  // ties Ctrl+S back to POST /save on the right database row.
   const editors = {};
 
   // picks a syntax mode based on the file's extension, defaults to plain js-ish highlighting
@@ -900,8 +1138,23 @@
     return 'javascript';
   }
 
-  // ================= tabs: opening (from sidebar) =================
-  function openTab(id, label, content) {
+  function markDirty(id, dirty) {
+    const entry = editors[id];
+    if (!entry) return;
+    entry.dirty = dirty;
+    const tab = document.querySelector(`.tab[data-tab="${id}"]`);
+    if (tab) tab.classList.toggle('dirty', dirty);
+    const statusEl = document.querySelector(`.code-panel[data-panel="${id}"] .code-status`);
+    if (statusEl) {
+      const savedLabel = statusEl.querySelector('.status-label');
+      if (savedLabel) savedLabel.textContent = dirty ? 'unsaved changes' : 'saved';
+    }
+  }
+
+  // ================= tabs: opening =================
+  // saveId: pass a save_id string for cloud files so Ctrl+S/Save syncs back to the db.
+  // leave undefined for local/new/scratch files (Save just shows a "can't save" note).
+  function openTab(id, label, content, saveId) {
     let tab = document.querySelector(`.tab[data-tab="${id}"]`);
 
     if (!tab) {
@@ -909,13 +1162,22 @@
       tab = document.createElement('div');
       tab.className = 'tab';
       tab.dataset.tab = id;
-      tab.innerHTML = `<span class="tab-label">${label}</span><span class="close-btn" data-close="${id}">&times;</span>`;
+      tab.innerHTML = `<span class="dirty-dot"></span><span class="tab-label">${label}</span><span class="close-btn" data-close="${id}">&times;</span>`;
       tabBar.appendChild(tab);
 
-      // build the matching code panel, CodeMirror mounts straight into it, no extra padding
+      // build the matching code panel: optional cloud-status strip + CodeMirror
       const panel = document.createElement('div');
       panel.className = 'code-panel';
       panel.dataset.panel = id;
+
+      const status = document.createElement('div');
+      status.className = 'code-status';
+      if (saveId) {
+        status.classList.add('show');
+        status.innerHTML = `<span>☁ synced to your mcbCode account</span><span class="status-label">saved</span><button class="save-btn">Save</button>`;
+        status.querySelector('.save-btn').addEventListener('click', () => saveTab(id));
+      }
+      panel.appendChild(status);
 
       const editorWrap = document.createElement('div');
       editorWrap.className = 'code-editor';
@@ -932,9 +1194,15 @@
         styleActiveLine: true,
         indentUnit: 2,
         tabSize: 2,
-        extraKeys: { 'Shift-Tab': 'indentLess' }
+        extraKeys: {
+          'Shift-Tab': 'indentLess',
+          'Ctrl-S': () => saveTab(id),
+          'Cmd-S': () => saveTab(id)
+        }
       });
-      editors[id] = cm;
+
+      editors[id] = { cm, saveId: saveId || null, dirty: false };
+      cm.on('change', () => markDirty(id, true));
 
       attachTabEvents(tab);
       attachCloseEvent(tab.querySelector('.close-btn'));
@@ -944,7 +1212,7 @@
     activateTab(id);
   }
 
-  // generates a unique tab id for files opened outside the sidebar (local files, new blank files)
+  // generates a unique tab id for files opened outside the sidebar (local files, new blank files, cloud files)
   let dynamicTabCounter = 1;
   function nextDynamicId() {
     return `dyn${dynamicTabCounter++}`;
@@ -958,7 +1226,49 @@
     });
   }
 
+  // ================= saving =================
+  // syncs a tab's current content to the matching `saves` row via POST /save.
+  // this is the same endpoint the main site uses, so anything saved here shows
+  // up back on mcbcode.com immediately.
+  async function saveTab(id) {
+    const entry = editors[id];
+    if (!entry) return;
+    const statusEl = document.querySelector(`.code-panel[data-panel="${id}"] .code-status .status-label`);
+
+    if (!entry.saveId) {
+      // local/new file — nothing on the server to sync to
+      if (statusEl) { statusEl.textContent = "not a cloud file, can't save to your account"; }
+      return;
+    }
+    const tabLabelEl = document.querySelector(`.tab[data-tab="${id}"] .tab-label`);
+    const filename = tabLabelEl ? tabLabelEl.textContent : 'untitled';
+
+    try {
+      if (statusEl) statusEl.textContent = 'saving...';
+      await api('/save', {
+        method: 'POST',
+        body: JSON.stringify({ save_id: entry.saveId, content: entry.cm.getValue(), filename })
+      });
+      markDirty(id, false);
+    } catch (e) {
+      if (statusEl) statusEl.textContent = 'save failed: ' + e.message;
+    }
+  }
+
+  function saveActiveTab() {
+    const activeTab = document.querySelector('.tab.active');
+    if (activeTab) saveTab(activeTab.dataset.tab);
+  }
+
+  // warn before closing/refreshing the browser tab if anything is unsaved
+  window.addEventListener('beforeunload', (e) => {
+    const anyDirty = Object.values(editors).some(entry => entry.dirty);
+    if (anyDirty) { e.preventDefault(); e.returnValue = ''; }
+  });
+
   // ================= tabs: renaming (double-click the label) =================
+  // NOTE: this only renames the tab's display label locally. it does not rename
+  // the file server-side — there's no rename endpoint wired up for that yet.
   function attachRenameEvent(labelEl, id) {
     labelEl.addEventListener('dblclick', (e) => {
       e.stopPropagation();
@@ -994,6 +1304,13 @@
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const id = btn.dataset.close;
+      const entry = editors[id];
+
+      if (entry && entry.dirty) {
+        const ok = confirm('This tab has unsaved changes. Close anyway?');
+        if (!ok) return;
+      }
+
       const tab = document.querySelector(`.tab[data-tab="${id}"]`);
       const panel = document.querySelector(`.code-panel[data-panel="${id}"]`);
       const wasActive = tab.classList.contains('active');
@@ -1063,7 +1380,7 @@
     localFileInput.click();
   });
 
-  // once a local file is picked, read it and open it in a new tab
+  // once a local file is picked, read it and open it in a new tab (not cloud-linked)
   localFileInput.addEventListener('change', () => {
     const file = localFileInput.files[0];
     if (!file) return;
@@ -1080,15 +1397,20 @@
     localFileInput.value = '';
   });
 
-  // "Open mcbCode File" -> not built yet
+  // "Open mcbCode File" -> opens the real cloud file browser (needs login)
   document.getElementById('btn-open-mcbcode').addEventListener('click', () => {
     openfileOverlay.classList.remove('show');
-    showPlaceholder();
+    openCloudBrowser();
   });
 
-  // "Login" -> redirect to the account page
+  // "Login" button on the welcome screen: if already logged in, just pop the account
+  // popup instead of redirecting somewhere pointless
   document.getElementById('btn-login').addEventListener('click', () => {
-    window.location.href = 'https://mcbcode.com/account?redirectto=https://studio.mcbcode.com';
+    if (currentUser) {
+      accountPopup.classList.add('show');
+    } else {
+      window.location.href = 'https://mcbcode.com/account?redirectto=https://studio.mcbcode.com';
+    }
   });
 
   // "New Blank File" -> opens an empty scratch tab to start typing in right away
@@ -1096,6 +1418,167 @@
     const id = nextDynamicId();
     openTab(id, 'untitled', '');
   });
+
+  // ================= cloud file browser =================
+  const cloudfileOverlay = document.getElementById('cloudfile-overlay');
+  const cloudfileList = document.getElementById('cloudfile-list');
+  const cloudfileTitle = document.getElementById('cloudfile-title');
+
+  // navigation state: null = showing the project list.
+  // otherwise { code, name, files (flat list from /project), stack: [parentId,...] }
+  let cloudNav = null;
+
+  function openCloudBrowser() {
+    if (!currentUser) {
+      const goLogin = confirm("You need to be logged in to open a file from your mcbCode account. Go log in now?");
+      if (goLogin) window.location.href = 'https://mcbcode.com/account?redirectto=https://studio.mcbcode.com';
+      return;
+    }
+    cloudNav = null;
+    cloudfileOverlay.classList.add('show');
+    renderProjectList();
+  }
+  document.getElementById('cloudfile-close').addEventListener('click', () => {
+    cloudfileOverlay.classList.remove('show');
+  });
+
+  function cloudRow({ icon, name, idLabel, onClick }) {
+    const row = document.createElement('div');
+    row.className = 'cloudfile-row';
+    row.innerHTML = `<img src="${icon}" alt=""><span class="cf-name"></span>${idLabel ? `<span class="cf-id"></span>` : ''}`;
+    row.querySelector('.cf-name').textContent = name;
+    if (idLabel) row.querySelector('.cf-id').textContent = idLabel;
+    row.addEventListener('click', onClick);
+    return row;
+  }
+
+  async function renderProjectList() {
+    cloudfileTitle.textContent = 'Open mcbCode File';
+    cloudfileList.innerHTML = '<div class="cloudfile-loading">loading your projects...</div>';
+    try {
+      const data = await api('/projects');
+      cloudfileList.innerHTML = '';
+
+      if (!data.projects.length && !data.collab_projects.length) {
+        cloudfileList.innerHTML = '<div class="cloudfile-empty">no projects yet — create one on mcbcode.com first.</div>';
+        return;
+      }
+
+      if (data.projects.length) {
+        const label = document.createElement('div');
+        label.className = 'cloudfile-section-label';
+        label.textContent = 'Your Projects';
+        cloudfileList.appendChild(label);
+        data.projects.forEach(p => {
+          cloudfileList.appendChild(cloudRow({
+            icon: 'https://mcbcode.com/img/icons/folder.png',
+            name: p.name,
+            idLabel: `(${p.share_code})`,
+            onClick: () => openProject(p.share_code, p.name)
+          }));
+        });
+      }
+
+      if (data.collab_projects.length) {
+        const label = document.createElement('div');
+        label.className = 'cloudfile-section-label';
+        label.textContent = 'Collaborating On';
+        cloudfileList.appendChild(label);
+        data.collab_projects.forEach(p => {
+          cloudfileList.appendChild(cloudRow({
+            icon: 'https://mcbcode.com/img/icons/folder.png',
+            name: p.name,
+            idLabel: `(${p.share_code})`,
+            onClick: () => openProject(p.share_code, p.name)
+          }));
+        });
+      }
+    } catch (e) {
+      cloudfileList.innerHTML = `<div class="cloudfile-error">${e.message}</div>`;
+    }
+  }
+
+  async function openProject(code, name) {
+    cloudfileList.innerHTML = '<div class="cloudfile-loading">loading project...</div>';
+    try {
+      const data = await api('/project?code=' + encodeURIComponent(code));
+      cloudNav = { code, name, files: data.files, stack: [null] }; // stack of parent_id levels, starting at root
+      renderFolder();
+    } catch (e) {
+      cloudfileList.innerHTML = `<div class="cloudfile-error">${e.message}</div>`;
+    }
+  }
+
+  function renderFolder() {
+    const parentId = cloudNav.stack[cloudNav.stack.length - 1];
+    cloudfileTitle.textContent = cloudNav.name;
+    cloudfileList.innerHTML = '';
+
+    // back row: goes up a folder, or back to the project list if already at project root
+    const backRow = cloudRow({
+      icon: 'https://mcbcode.com/img/icons/folderup.png',
+      name: '.. back',
+      onClick: () => {
+        if (cloudNav.stack.length > 1) {
+          cloudNav.stack.pop();
+          renderFolder();
+        } else {
+          cloudNav = null;
+          renderProjectList();
+        }
+      }
+    });
+    cloudfileList.appendChild(backRow);
+
+    const children = cloudNav.files.filter(f => (f.parent_id ?? null) === parentId);
+    if (!children.length) {
+      const empty = document.createElement('div');
+      empty.className = 'cloudfile-empty';
+      empty.textContent = 'empty folder';
+      cloudfileList.appendChild(empty);
+      return;
+    }
+
+    // folders first, then files, alphabetical within each
+    children.sort((a, b) => {
+      if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    children.forEach(f => {
+      if (f.type === 'folder') {
+        cloudfileList.appendChild(cloudRow({
+          icon: 'https://mcbcode.com/img/icons/folder.png',
+          name: f.name,
+          onClick: () => { cloudNav.stack.push(f.id); renderFolder(); }
+        }));
+      } else {
+        cloudfileList.appendChild(cloudRow({
+          icon: 'https://mcbcode.com/img/icons/file.png',
+          name: f.name,
+          idLabel: `(${f.id})`,
+          onClick: () => openCloudFile(f)
+        }));
+      }
+    });
+  }
+
+  async function openCloudFile(file) {
+    if (!file.save_id) {
+      // r2-backed binary asset (image, structure file, etc) — this editor is text-only
+      alert("That file isn't a text file (it's an image or binary asset), so it can't be opened in the code editor.");
+      return;
+    }
+    cloudfileList.innerHTML = '<div class="cloudfile-loading">opening file...</div>';
+    try {
+      const data = await api('/save?id=' + encodeURIComponent(file.save_id));
+      const id = 'cloud_' + file.save_id;
+      openTab(id, data.filename || file.name, data.content || '', file.save_id);
+      cloudfileOverlay.classList.remove('show');
+    } catch (e) {
+      cloudfileList.innerHTML = `<div class="cloudfile-error">${e.message}</div>`;
+    }
+  }
 
   // ================= sidebar resizing + snap-close =================
   const sidebarWrap = document.getElementById('sidebar-wrap');
