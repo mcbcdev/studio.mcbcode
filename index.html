@@ -3,6 +3,20 @@
   <link rel="stylesheet" href="https://mcbcode.com/theme/site.css">
   <link rel="icon" href="https://mcbcode.com/theme/favicon.png">
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+
+  <!-- CodeMirror: powers the code editor (line numbers, syntax highlighting, multi-cursor) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/markdown/markdown.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/shell/shell.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/searchcursor.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
+  <!-- sublime keymap = where multi-cursor shortcuts live: Ctrl/Cmd-D select next occurrence,
+       Ctrl/Cmd-Alt-Up/Down add cursor above/below, Alt-Click add a cursor (mouse, built into CM core) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/keymap/sublime.min.js"></script>
 <style>
     /* ===== theme vars ===== */
     :root {
@@ -315,41 +329,39 @@
     .code-panel.active {
       display: flex;
     }
-    /* line numbers + textarea, no stray padding around the editing area */
+    /* CodeMirror mount point — fills the panel, no stray padding around it */
     .code-editor {
-      display: flex;
       width: 100%;
       height: 100%;
     }
-    .line-numbers {
-      flex-shrink: 0;
-      padding: 0 8px 0 12px;
-      background: var(--bg-3);
-      color: var(--text-muted);
-      font-family: var(--font-mono);
-      font-size: 14px;
-      line-height: 1.5;
-      text-align: right;
-      overflow: hidden;
-      -webkit-user-select: none;
-      user-select: none;
-      white-space: pre;
-    }
-    .code-panel textarea {
-      flex: 1;
+    .code-editor .CodeMirror {
       width: 100%;
       height: 100%;
-      resize: none;
-      border: none;
-      outline: none;
       background: var(--bg-3);
       color: var(--text-body);
       font-family: var(--font-mono);
       font-size: 14px;
       line-height: 1.5;
-      padding: 0 12px 0 8px;
-      margin: 0;
-      overflow: auto;
+    }
+    .code-editor .CodeMirror-gutters {
+      background: var(--bg-3);
+      border-right: 1px solid var(--border);
+    }
+    .code-editor .CodeMirror-linenumber {
+      color: var(--text-muted);
+      padding: 0 8px 0 12px;
+    }
+    .code-editor .CodeMirror-cursor {
+      border-left: 1.5px solid var(--accent);
+    }
+    .code-editor .CodeMirror-selected {
+      background: rgba(5, 238, 147, 0.18);
+    }
+    .code-editor .CodeMirror-activeline-background {
+      background: var(--bg-5);
+    }
+    .code-editor .cm-matchhighlight {
+      background: rgba(5, 238, 147, 0.15);
     }
 
     /* welcome placeholder shown when 0 tabs open */
@@ -452,6 +464,68 @@
       color: #eee;
     }
 
+    /* keyboard shortcuts modal */
+    #shortcuts-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    #shortcuts-overlay.show {
+      display: flex;
+    }
+    #shortcuts-box {
+      background: var(--bg-4);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius);
+      padding: 24px 30px;
+      color: #eee;
+      min-width: 340px;
+      max-width: 90vw;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    #shortcuts-box h2 {
+      margin: 0 0 14px;
+      font-size: 20px;
+    }
+    .shortcuts-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+    .shortcut-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      font-size: 13px;
+      color: var(--text-sub);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }
+    .shortcut-row .keys {
+      color: var(--accent);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    #shortcuts-box button {
+      background: var(--accent);
+      border: none;
+      color: #06251b;
+      padding: 8px 18px;
+      cursor: pointer;
+      font-size: 13px;
+      font-family: var(--font-mono);
+      font-weight: bold;
+    }
+    #shortcuts-box button:hover {
+      background: var(--accent-dim);
+    }
+
     /* placeholder modal for extensions/themes */
     #placeholder-overlay {
       display: none;
@@ -542,6 +616,10 @@
         <div data-action="placeholder">Browse Themes</div>
       </div>
     </div>
+
+    <div class="menu-item" id="shortcuts-btn">
+      Shortcuts
+    </div>
   </div>
 
   <!-- ===== workspace: activity bar + sidebar + editor ===== -->
@@ -614,17 +692,34 @@
         </div>
         <!-- code panels get added here when a file is opened, example:
         <div class="code-panel" data-panel="tab1">
-          <div class="code-editor">
-            <div class="line-numbers">1</div>
-            <textarea>// manifest.json content goes here</textarea>
-          </div>
+          <div class="code-editor"></div>  <-- CodeMirror mounts into this div -->
         </div>
         -->
       </div>
-
     </div>
   </div>
 
+  <!-- ===== keyboard shortcuts modal ===== -->
+  <div id="shortcuts-overlay">
+    <div id="shortcuts-box">
+      <h2>Keyboard Shortcuts</h2>
+      <div class="shortcuts-list">
+        <div class="shortcut-row"><span>Select next occurrence (multi-cursor)</span><span class="keys">Ctrl/Cmd + D</span></div>
+        <div class="shortcut-row"><span>Add cursor above / below</span><span class="keys">Ctrl/Cmd + Alt + Up / Down</span></div>
+        <div class="shortcut-row"><span>Add cursor at click</span><span class="keys">Alt + Click</span></div>
+        <div class="shortcut-row"><span>Column select (box selection)</span><span class="keys">Alt + Shift + Drag</span></div>
+        <div class="shortcut-row"><span>Select all occurrences</span><span class="keys">Ctrl/Cmd + Shift + L</span></div>
+        <div class="shortcut-row"><span>Move line up / down</span><span class="keys">Ctrl/Cmd + Alt + Shift + Up / Down</span></div>
+        <div class="shortcut-row"><span>Duplicate line</span><span class="keys">Ctrl/Cmd + Shift + D</span></div>
+        <div class="shortcut-row"><span>Toggle line comment</span><span class="keys">Ctrl/Cmd + /</span></div>
+        <div class="shortcut-row"><span>Find</span><span class="keys">Ctrl/Cmd + F</span></div>
+        <div class="shortcut-row"><span>Find and replace</span><span class="keys">Ctrl/Cmd + Alt + F</span></div>
+        <div class="shortcut-row"><span>Indent / outdent selection</span><span class="keys">Tab / Shift + Tab</span></div>
+        <div class="shortcut-row"><span>Rename tab</span><span class="keys">Double-click tab name</span></div>
+      </div>
+      <button id="shortcuts-close">Close</button>
+    </div>
+  </div>
   <!-- ===== coming soon placeholder modal ===== -->
   <div id="placeholder-overlay">
     <div id="placeholder-box">
@@ -649,7 +744,8 @@
 
 <script>
   // ================= menu bar dropdowns =================
-  const menuItems = document.querySelectorAll('.menu-item');
+  // only menu items with an actual dropdown inside toggle open/close
+  const menuItems = document.querySelectorAll('.menu-item:has(.menu-dropdown)');
 
   menuItems.forEach(item => {
     item.addEventListener('click', (e) => {
@@ -683,6 +779,14 @@
     document.getElementById('placeholder-overlay').classList.remove('show');
   });
 
+  // ================= keyboard shortcuts modal =================
+  document.getElementById('shortcuts-btn').addEventListener('click', () => {
+    document.getElementById('shortcuts-overlay').classList.add('show');
+  });
+  document.getElementById('shortcuts-close').addEventListener('click', () => {
+    document.getElementById('shortcuts-overlay').classList.remove('show');
+  });
+
   // ================= welcome panel + tab state =================
   const tabBar = document.getElementById('tab-bar');
   const codeArea = document.getElementById('code-area');
@@ -705,14 +809,26 @@
       f.classList.toggle('active', f.dataset.file === id);
     });
     updateWelcomeVisibility();
+
+    // CodeMirror sizes itself based on its container at creation time, so a fresh
+    // instance mounted while its tab was hidden renders broken until this is called
+    const cm = editors[id];
+    if (cm) {
+      setTimeout(() => { cm.refresh(); cm.focus(); }, 0);
+    }
   }
 
-  // ================= line numbers helper =================
-  function syncLineNumbers(textarea, lineNumbersEl) {
-    const lineCount = textarea.value.split('\n').length;
-    let nums = '';
-    for (let i = 1; i <= lineCount; i++) nums += i + '\n';
-    lineNumbersEl.textContent = nums.trim() === '' ? '1' : nums;
+  // ================= CodeMirror setup =================
+  // keeps one CodeMirror instance per open tab id, so switching tabs doesn't rebuild them
+  const editors = {};
+
+  // picks a syntax mode based on the file's extension, defaults to plain js-ish highlighting
+  function modeForFilename(name) {
+    const ext = (name.split('.').pop() || '').toLowerCase();
+    if (ext === 'md') return 'markdown';
+    if (ext === 'json') return { name: 'javascript', json: true };
+    if (ext === 'mcfunction' || ext === 'sh' || ext === 'txt') return 'shell';
+    return 'javascript';
   }
 
   // ================= tabs: opening (from sidebar) =================
@@ -727,31 +843,29 @@
       tab.innerHTML = `<span class="tab-label">${label}</span><span class="close-btn" data-close="${id}">&times;</span>`;
       tabBar.appendChild(tab);
 
-      // build the matching code panel: line numbers + editable textarea, no extra padding around it
+      // build the matching code panel, CodeMirror mounts straight into it, no extra padding
       const panel = document.createElement('div');
       panel.className = 'code-panel';
       panel.dataset.panel = id;
 
       const editorWrap = document.createElement('div');
       editorWrap.className = 'code-editor';
-
-      const lineNumbers = document.createElement('div');
-      lineNumbers.className = 'line-numbers';
-
-      const textarea = document.createElement('textarea');
-      textarea.value = content;
-      textarea.spellcheck = false;
-
-      editorWrap.appendChild(lineNumbers);
-      editorWrap.appendChild(textarea);
       panel.appendChild(editorWrap);
       codeArea.appendChild(panel);
 
-      syncLineNumbers(textarea, lineNumbers);
-      textarea.addEventListener('input', () => syncLineNumbers(textarea, lineNumbers));
-      textarea.addEventListener('scroll', () => {
-        lineNumbers.scrollTop = textarea.scrollTop;
+      const cm = CodeMirror(editorWrap, {
+        value: content,
+        mode: modeForFilename(label),
+        lineNumbers: true,
+        theme: 'default',
+        keyMap: 'sublime',        // unlocks multi-cursor shortcuts (see the Shortcuts menu)
+        matchBrackets: true,
+        styleActiveLine: true,
+        indentUnit: 2,
+        tabSize: 2,
+        extraKeys: { 'Shift-Tab': 'indentLess' }
       });
+      editors[id] = cm;
 
       attachTabEvents(tab);
       attachCloseEvent(tab.querySelector('.close-btn'));
@@ -817,6 +931,7 @@
 
       tab.remove();
       if (panel) panel.remove();
+      delete editors[id];
       document.querySelector(`.file-item[data-file="${id}"]`)?.classList.remove('active');
 
       // if the closed tab was active, activate the first remaining tab
