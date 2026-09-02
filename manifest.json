@@ -1,0 +1,28 @@
+{
+  "name": "studio.mcbCode",
+  "short_name": "studio.mcbc",
+  "description": "developer ide for all things minecraft",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-or-landscape",
+  "theme_color": "#0c0c0c",
+  "background_color": "#0c0c0c",
+  "icons": [
+    {
+      "src": "https://mcbcode.com/img/icons/studio_logo.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://mcbcode.com/img/icons/studio_logo.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["productivity", "developer"],
+  "screenshots": [],
+  "shortcuts": []
+}
