@@ -994,7 +994,367 @@
       color: #eee;
     }
 
-    /* placeholder modal for extensions/themes */
+    /* ===== extension manager ===== */
+    #ext-manager-overlay, #ext-detail-overlay, #ext-perms-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      align-items: center;
+      justify-content: center;
+      z-index: 120;
+    }
+    #ext-manager-overlay.show, #ext-detail-overlay.show, #ext-perms-overlay.show {
+      display: flex;
+    }
+    #ext-manager-box {
+      background: var(--bg-4);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius);
+      padding: 22px 26px;
+      color: #eee;
+      width: 520px;
+      max-width: 94vw;
+      max-height: 86vh;
+      display: flex;
+      flex-direction: column;
+    }
+    #ext-manager-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+      flex-shrink: 0;
+    }
+    #ext-manager-header h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+    #ext-install-dropdown {
+      position: relative;
+    }
+    #ext-install-btn {
+      background: var(--accent);
+      border: none;
+      color: #06251b;
+      padding: 8px 14px;
+      cursor: pointer;
+      font-size: 13px;
+      font-family: var(--font-mono);
+      font-weight: bold;
+    }
+    #ext-install-btn:hover {
+      background: var(--accent-dim);
+    }
+    #ext-install-menu {
+      display: none;
+      position: absolute;
+      top: 100%;
+      right: 0;
+      background: #252525;
+      border: 1px solid var(--border-strong);
+      min-width: 190px;
+      z-index: 10;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+    }
+    #ext-install-menu.show {
+      display: block;
+    }
+    #ext-install-menu div {
+      padding: 8px 12px;
+      font-size: 13px;
+      color: #ddd;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    #ext-install-menu div:hover {
+      background: var(--accent);
+      color: #06251b;
+    }
+    #ext-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 10px;
+      flex-shrink: 0;
+    }
+    .ext-tab {
+      background: none;
+      border: none;
+      color: var(--text-tab);
+      padding: 8px 14px;
+      cursor: pointer;
+      font-size: 13px;
+      font-family: var(--font-mono);
+      border-bottom: 2px solid transparent;
+    }
+    .ext-tab:hover {
+      color: #eee;
+    }
+    .ext-tab.active {
+      color: var(--text-main);
+      border-bottom-color: var(--accent);
+    }
+    #ext-list {
+      overflow-y: auto;
+      flex: 1;
+      min-height: 120px;
+      margin-bottom: 12px;
+    }
+    .ext-card {
+      display: flex;
+      gap: 12px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      margin-bottom: 8px;
+      align-items: flex-start;
+    }
+    .ext-card img.ext-icon {
+      width: 36px;
+      height: 36px;
+      image-rendering: pixelated;
+      flex-shrink: 0;
+    }
+    .ext-card-body {
+      flex: 1;
+      min-width: 0;
+    }
+    .ext-card-title-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .ext-card-title-row strong {
+      font-size: 14px;
+      color: var(--text-main);
+    }
+    .ext-card-id {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .ext-card-meta {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin: 2px 0 6px;
+    }
+    .ext-card-desc {
+      font-size: 12px;
+      color: var(--text-sub);
+      margin-bottom: 8px;
+    }
+    .ext-card-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .ext-card-actions button {
+      background: var(--bg-6);
+      border: 1px solid var(--border-strong);
+      color: #eee;
+      padding: 4px 10px;
+      cursor: pointer;
+      font-size: 11px;
+      font-family: var(--font-mono);
+    }
+    .ext-card-actions button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .ext-card-actions button.ext-danger:hover {
+      border-color: #ff6b6b;
+      color: #ff6b6b;
+    }
+    .ext-card.disabled {
+      opacity: 0.55;
+    }
+    .ext-badge {
+      font-size: 10px;
+      padding: 2px 7px;
+      border: 1px solid var(--border-strong);
+      color: var(--text-muted);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .ext-badge.verified {
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+    .ext-badge.unverified {
+      color: #ffb020;
+      border-color: #ffb020;
+    }
+    #ext-manager-close, #ext-detail-close, #ext-perms-close {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 13px;
+      font-family: var(--font-mono);
+      flex-shrink: 0;
+    }
+    #ext-manager-close:hover, #ext-detail-close:hover, #ext-perms-close:hover {
+      color: #eee;
+    }
+    .ext-empty {
+      padding: 30px 12px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    /* extension details / install review modal */
+    #ext-detail-box {
+      background: var(--bg-4);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius);
+      padding: 22px 26px;
+      color: #eee;
+      width: 460px;
+      max-width: 94vw;
+      max-height: 88vh;
+      overflow-y: auto;
+    }
+    #ext-detail-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    #ext-detail-icon {
+      width: 44px;
+      height: 44px;
+      image-rendering: pixelated;
+      flex-shrink: 0;
+    }
+    #ext-detail-header > div {
+      flex: 1;
+      min-width: 0;
+    }
+    #ext-detail-name {
+      margin: 0;
+      font-size: 17px;
+    }
+    #ext-detail-meta {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+    #ext-detail-description {
+      font-size: 13px;
+      color: var(--text-sub);
+      margin: 0 0 10px;
+    }
+    .ext-warning {
+      display: none;
+      background: rgba(255, 176, 32, 0.1);
+      border: 1px solid #ffb020;
+      color: #ffb020;
+      font-size: 12px;
+      padding: 8px 10px;
+      margin-bottom: 14px;
+    }
+    .ext-warning.show {
+      display: block;
+    }
+    .ext-section-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin: 14px 0 6px;
+    }
+    .ext-perm-group {
+      border: 1px solid var(--border);
+      margin-bottom: 8px;
+    }
+    .ext-perm-group-title {
+      background: var(--bg-2);
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: bold;
+      color: var(--text-sub);
+    }
+    .ext-perm-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      font-size: 12px;
+      color: #ddd;
+      border-top: 1px solid var(--border);
+    }
+    .ext-perm-item .check {
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+    #ext-detail-info-section {
+      margin-bottom: 14px;
+    }
+    .ext-info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 12px;
+      font-size: 12px;
+      color: var(--text-sub);
+    }
+    .ext-info-grid span.label {
+      color: var(--text-muted);
+    }
+    #ext-detail-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    #ext-detail-actions button {
+      flex: 1;
+      min-width: 110px;
+      background: var(--bg-6);
+      border: 1px solid var(--border-strong);
+      color: #eee;
+      padding: 9px 10px;
+      cursor: pointer;
+      font-size: 13px;
+      font-family: var(--font-mono);
+    }
+    #ext-detail-actions button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    #ext-detail-actions button.ext-primary {
+      background: var(--accent);
+      color: #06251b;
+      font-weight: bold;
+      border-color: var(--accent);
+    }
+    #ext-detail-actions button.ext-primary:hover {
+      background: var(--accent-dim);
+      color: #06251b;
+    }
+    #ext-detail-actions button.ext-danger:hover {
+      border-color: #ff6b6b;
+      color: #ff6b6b;
+    }
+
+    /* permissions-only quick view */
+    #ext-perms-box {
+      background: var(--bg-4);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius);
+      padding: 22px 26px;
+      color: #eee;
+      width: 400px;
+      max-width: 92vw;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    #ext-perms-box h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
+
+    /* placeholder modal for future coming-soon items */
     #placeholder-overlay {
       display: none;
       position: fixed;
@@ -1074,7 +1434,8 @@
     <div class="menu-item" data-menu="extensions">
       Extensions
       <div class="menu-dropdown">
-        <div data-action="placeholder">Browse Extensions</div>
+        <div data-action="open-extensions">Manage Extensions</div>
+        <div data-action="open-marketplace">Browse Extensions</div>
       </div>
     </div>
 
@@ -1101,7 +1462,7 @@
       <div class="activity-icon" data-action="placeholder">
         <img src="https://mcbcode.com/img/icons/blank-transparent.png" alt="search">
       </div>
-      <div class="activity-icon" data-action="placeholder">
+      <div class="activity-icon" id="activity-extensions-icon">
         <img src="https://mcbcode.com/img/icons/blank-transparent.png" alt="extensions">
       </div>
       <div class="activity-icon" data-action="placeholder">
@@ -1236,6 +1597,66 @@
     </div>
   </div>
 
+  <!-- ===== extension manager ===== -->
+  <div id="ext-manager-overlay">
+    <div id="ext-manager-box">
+      <div id="ext-manager-header">
+        <h2>Extensions</h2>
+        <div id="ext-install-dropdown">
+          <button id="ext-install-btn">Install Extension ▾</button>
+          <div id="ext-install-menu">
+            <div id="ext-import-btn">Import .studiomcbc</div>
+            <div id="ext-browse-btn">Browse Extensions</div>
+          </div>
+        </div>
+      </div>
+      <div id="ext-tabs">
+        <button class="ext-tab active" data-tab="installed">Installed</button>
+        <button class="ext-tab" data-tab="marketplace">Marketplace</button>
+      </div>
+      <div id="ext-list"></div>
+      <button id="ext-manager-close">Close</button>
+    </div>
+  </div>
+
+  <!-- ===== extension details / install review (shared modal, mode-driven) ===== -->
+  <div id="ext-detail-overlay">
+    <div id="ext-detail-box">
+      <div id="ext-detail-header">
+        <img id="ext-detail-icon" src="https://mcbcode.com/img/icons/blank-transparent.png" alt="">
+        <div>
+          <h2 id="ext-detail-name">Extension Name</h2>
+          <div id="ext-detail-meta">by <span id="ext-detail-author"></span> · v<span id="ext-detail-version"></span></div>
+        </div>
+        <span id="ext-detail-badge" class="ext-badge"></span>
+      </div>
+      <p id="ext-detail-description"></p>
+      <div id="ext-detail-warning" class="ext-warning"></div>
+
+      <div id="ext-detail-permissions"></div>
+
+      <div id="ext-detail-info-section">
+        <div class="ext-section-label">Extension Information</div>
+        <div id="ext-detail-info" class="ext-info-grid"></div>
+      </div>
+
+      <div id="ext-detail-actions"></div>
+      <button id="ext-detail-close">Close</button>
+    </div>
+  </div>
+
+  <!-- ===== extension permissions-only quick view ===== -->
+  <div id="ext-perms-overlay">
+    <div id="ext-perms-box">
+      <h2 id="ext-perms-title">Permissions</h2>
+      <div id="ext-perms-list"></div>
+      <button id="ext-perms-close">Close</button>
+    </div>
+  </div>
+
+  <!-- hidden file input used for "Import .studiomcbc" -->
+  <input type="file" id="ext-import-input" accept=".studiomcbc" style="display:none">
+
   <!-- ===== coming soon placeholder modal ===== -->
   <div id="placeholder-overlay">
     <div id="placeholder-box">
@@ -1319,9 +1740,11 @@
     saveActiveTab();
   });
 
-  // extensions top-level menu item still opens placeholder when clicked directly
-  document.querySelector('[data-menu="extensions"]').addEventListener('click', showPlaceholder);
+  // extensions top-level menu item now opens the manager instead of the placeholder
+  document.querySelector('[data-action="open-extensions"]').addEventListener('click', () => openExtManager('installed'));
+  document.querySelector('[data-action="open-marketplace"]').addEventListener('click', () => openExtManager('marketplace'));
   document.querySelector('[data-action="open-theme"]').addEventListener('click', () => openThemeModal());
+  document.getElementById('activity-extensions-icon').addEventListener('click', () => openExtManager('installed'));
 
   function showPlaceholder() {
     document.getElementById('placeholder-overlay').classList.add('show');
@@ -2081,6 +2504,457 @@
       btn.textContent = 'Copied!';
       setTimeout(() => { btn.textContent = original; }, 1500);
     });
+  });
+
+  // =====================================================================
+  // EXTENSION SYSTEM — frontend/UI layer only. No runtime, no sandboxing,
+  // no real network/file access happens here. Everything below is grouped
+  // into the modules called out in the spec so a real backend can replace
+  // just the "extension-data" module later without touching the UI code.
+  // =====================================================================
+
+  // ---------- extension-ui-api ----------
+  // the eventual public API extensions call to add UI (studio.ui.registerPanel(...) etc).
+  // right now these are stubs: they just log what would happen and record the call,
+  // so it's obvious this is a placeholder and not a real integration point yet.
+  // no extension code ever actually runs in this build, so nothing here is
+  // reachable by an extension yet — it exists purely to define the future shape.
+  window.studio = window.studio || {};
+  studio.ui = {
+    _registry: [], // just for inspecting in devtools during development
+    registerPanel(opts) { this._log('registerPanel', opts); },
+    registerSidebarItem(opts) { this._log('registerSidebarItem', opts); },
+    registerToolbarItem(opts) { this._log('registerToolbarItem', opts); },
+    registerEditorAction(opts) { this._log('registerEditorAction', opts); },
+    registerStatusBarItem(opts) { this._log('registerStatusBarItem', opts); },
+    registerCommand(opts) { this._log('registerCommand', opts); },
+    registerContextMenuAction(opts) { this._log('registerContextMenuAction', opts); },
+    _log(method, opts) {
+      this._registry.push({ method, opts });
+      console.log(`[studio.ui.${method}] (stub — no extension runtime yet)`, opts);
+    }
+  };
+
+  // ---------- extension-data ----------
+  // mock persistence layer. installed extensions live in localStorage for now
+  // (per-browser, not per-account) so the manager UI has something real to
+  // read/write during development. every function here is where the real
+  // backend calls (install/uninstall/enable/disable, extension id lookups,
+  // etc) will eventually go instead.
+  const ExtensionData = (function () {
+    const STORAGE_KEY = 'studio_installed_extensions';
+
+    function loadInstalled() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+      catch { return []; }
+    }
+    function saveInstalled(list) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    }
+
+    return {
+      getInstalledExtensions() {
+        return loadInstalled();
+      },
+      getExtension(id) {
+        return loadInstalled().find(e => e.id === id) || null;
+      },
+      // manifest: the parsed (mocked) .studiomcbc manifest, already approved by the user.
+      // meta: { source: 'imported'|'marketplace', verified: bool }
+      installExtension(manifest, meta) {
+        const list = loadInstalled();
+        if (list.some(e => e.id === manifest.id)) {
+          // already installed — real backend would probably treat this as an update
+          return list.find(e => e.id === manifest.id);
+        }
+        const record = {
+          ...manifest,
+          enabled: true,
+          verified: !!meta.verified,
+          source: meta.source,
+          installedAt: new Date().toISOString().slice(0, 10)
+        };
+        list.push(record);
+        saveInstalled(list);
+        return record;
+      },
+      uninstallExtension(id) {
+        saveInstalled(loadInstalled().filter(e => e.id !== id));
+      },
+      enableExtension(id) { this._setEnabled(id, true); },
+      disableExtension(id) { this._setEnabled(id, false); },
+      _setEnabled(id, val) {
+        const list = loadInstalled();
+        const e = list.find(x => x.id === id);
+        if (e) e.enabled = val;
+        saveInstalled(list);
+      },
+      getExtensionPermissions(id) {
+        const e = this.getExtension(id);
+        return e ? e.permissions : null;
+      },
+      // mock marketplace catalog — real backend will fetch this from a server instead
+      getMarketplaceExtensions() {
+        return MOCK_MARKETPLACE;
+      }
+    };
+  })();
+
+  // ---------- mock manifests ----------
+  // shape mirrors the real future .studiomcbc manifest (formatVersion, id, permissions, contributes, etc).
+  const MOCK_EXTENSIONS = {
+    wiki: {
+      formatVersion: 1,
+      id: 'example.minecraft-wiki',
+      name: 'Minecraft Wiki',
+      version: '1.0.0',
+      description: 'Look up Minecraft Bedrock wiki pages without leaving the editor.',
+      author: 'example developer',
+      main: 'main.js',
+      icon: 'https://mcbcode.com/img/icons/blank-transparent.png',
+      permissions: {
+        network: ['https://api.example.com'],
+        workspace: ['read'],
+        editor: ['read']
+      },
+      contributes: { commands: ['wiki.search'], panels: ['wiki.sidebar'], editor: {} }
+    },
+    mcfTools: {
+      formatVersion: 1,
+      id: 'community.mcfunction-tools',
+      name: 'mcfunction Tools',
+      version: '0.4.2',
+      description: 'Snippets and quick actions for writing .mcfunction files.',
+      author: 'community contributor',
+      main: 'main.js',
+      icon: 'https://mcbcode.com/img/icons/blank-transparent.png',
+      permissions: {
+        workspace: ['read', 'write'],
+        editor: ['read', 'modify'],
+        ui: ['registerCommands', 'registerPanels']
+      },
+      contributes: { commands: ['mcf.formatFile'], panels: [], editor: {} }
+    },
+    textureHelper: {
+      formatVersion: 1,
+      id: 'community.block-texture-helper',
+      name: 'Block Texture Helper',
+      version: '1.3.0',
+      description: 'Generates and edits block texture files directly inside your resource pack.',
+      author: 'community contributor',
+      main: 'main.js',
+      icon: 'https://mcbcode.com/img/icons/blank-transparent.png',
+      permissions: {
+        workspace: ['read', 'write'],
+        bedrock: ['read', 'modify']
+      },
+      contributes: { commands: ['textures.generate'], panels: ['textures.panel'], editor: {} }
+    },
+    multiApi: {
+      formatVersion: 1,
+      id: 'community.multi-api-connector',
+      name: 'Multi API Connector',
+      version: '2.0.1',
+      description: 'Pulls data from CurseForge, MCPEDL, and a custom texture host all in one panel.',
+      author: 'community contributor',
+      main: 'main.js',
+      icon: 'https://mcbcode.com/img/icons/blank-transparent.png',
+      permissions: {
+        network: ['https://api.curseforge.com', 'https://api.mcpedl.com', 'https://api.example-textures.com'],
+        workspace: ['read']
+      },
+      contributes: { commands: [], panels: ['connector.panel'], editor: {} }
+    }
+  };
+
+  // marketplace listing — verified flag here represents what the (future) store would say
+  const MOCK_MARKETPLACE = [
+    { manifest: MOCK_EXTENSIONS.wiki, verified: true },
+    { manifest: MOCK_EXTENSIONS.textureHelper, verified: true },
+    { manifest: MOCK_EXTENSIONS.multiApi, verified: false }
+  ];
+
+  // seed two installed extensions on first run so the manager has something
+  // to demo enable/disable/uninstall/permissions against right away
+  (function seedMockInstalledExtensions() {
+    if (ExtensionData.getInstalledExtensions().length > 0) return;
+    ExtensionData.installExtension(MOCK_EXTENSIONS.wiki, { source: 'marketplace', verified: true });
+    ExtensionData.installExtension(MOCK_EXTENSIONS.mcfTools, { source: 'imported', verified: false });
+  })();
+
+  // ---------- extension-permissions (shared rendering helpers) ----------
+  const PERMISSION_LABELS = {
+    network: 'Network Access',
+    workspace: 'Workspace Access',
+    editor: 'Editor Access',
+    ui: 'UI Access',
+    bedrock: 'Bedrock Project Access'
+  };
+  const PERMISSION_VALUE_LABELS = {
+    read: 'Read project files',
+    write: 'Write project files',
+    modify: 'Modify contents',
+    registerCommands: 'Register commands',
+    registerPanels: 'Register panels',
+    registerToolbarItems: 'Register toolbar items',
+    registerStatusBarItems: 'Register status bar items'
+  };
+
+  // builds the permission-groups markup used in both the install review and details view
+  function renderPermissionGroups(permissions) {
+    if (!permissions || Object.keys(permissions).length === 0) {
+      return '<div class="ext-empty">This extension requests no special permissions.</div>';
+    }
+    return Object.entries(permissions).map(([category, values]) => {
+      const title = PERMISSION_LABELS[category] || category;
+      const items = values.map(v => {
+        // network permissions are raw domains/URLs — show them exactly, never collapse to "internet access"
+        const label = category === 'network' ? v : (PERMISSION_VALUE_LABELS[v] || v);
+        return `<div class="ext-perm-item"><span class="check">✓</span>${label}</div>`;
+      }).join('');
+      return `<div class="ext-perm-group"><div class="ext-perm-group-title">${title}</div>${items}</div>`;
+    }).join('');
+  }
+
+  // ---------- extension-manager ----------
+  const extManagerOverlay = document.getElementById('ext-manager-overlay');
+  const extList = document.getElementById('ext-list');
+  let extManagerTab = 'installed';
+
+  function openExtManager(tab) {
+    extManagerTab = tab || 'installed';
+    document.querySelectorAll('.ext-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === extManagerTab));
+    renderExtManagerList();
+    extManagerOverlay.classList.add('show');
+  }
+  document.getElementById('ext-manager-close').addEventListener('click', () => extManagerOverlay.classList.remove('show'));
+
+  document.querySelectorAll('.ext-tab').forEach(tab => {
+    tab.addEventListener('click', () => openExtManager(tab.dataset.tab));
+  });
+
+  function extBadgeHtml(verified) {
+    return verified
+      ? `<span class="ext-badge verified">Verified</span>`
+      : `<span class="ext-badge unverified">Unverified</span>`;
+  }
+
+  function renderExtManagerList() {
+    extList.innerHTML = '';
+
+    if (extManagerTab === 'installed') {
+      const installed = ExtensionData.getInstalledExtensions();
+      if (!installed.length) {
+        extList.innerHTML = '<div class="ext-empty">No extensions installed yet.</div>';
+        return;
+      }
+      installed.forEach(ext => extList.appendChild(buildInstalledCard(ext)));
+    } else {
+      const installedIds = new Set(ExtensionData.getInstalledExtensions().map(e => e.id));
+      MOCK_MARKETPLACE.forEach(entry => extList.appendChild(buildMarketplaceCard(entry, installedIds.has(entry.manifest.id))));
+    }
+  }
+
+  function buildInstalledCard(ext) {
+    const card = document.createElement('div');
+    card.className = 'ext-card' + (ext.enabled ? '' : ' disabled');
+    card.innerHTML = `
+      <img class="ext-icon" src="${ext.icon}" alt="">
+      <div class="ext-card-body">
+        <div class="ext-card-title-row">
+          <strong>${ext.name}</strong>
+          <span class="ext-card-id">${ext.id}</span>
+          ${extBadgeHtml(ext.verified)}
+        </div>
+        <div class="ext-card-meta">by ${ext.author} · v${ext.version} · ${ext.enabled ? 'enabled' : 'disabled'}</div>
+        <div class="ext-card-desc">${ext.description}</div>
+        <div class="ext-card-actions">
+          <button data-act="manage">Manage</button>
+          <button data-act="toggle">${ext.enabled ? 'Disable' : 'Enable'}</button>
+          <button data-act="perms">Permissions</button>
+          <button data-act="download">Download</button>
+          <button data-act="uninstall" class="ext-danger">Uninstall</button>
+        </div>
+      </div>
+    `;
+    card.querySelector('[data-act="manage"]').addEventListener('click', () => openExtDetails(ext.id));
+    card.querySelector('[data-act="toggle"]').addEventListener('click', () => {
+      ext.enabled ? ExtensionData.disableExtension(ext.id) : ExtensionData.enableExtension(ext.id);
+      renderExtManagerList();
+    });
+    card.querySelector('[data-act="perms"]').addEventListener('click', () => openExtPermissions(ext));
+    card.querySelector('[data-act="download"]').addEventListener('click', () => downloadExtension(ext));
+    card.querySelector('[data-act="uninstall"]').addEventListener('click', () => {
+      if (confirm(`Uninstall "${ext.name}"?`)) {
+        ExtensionData.uninstallExtension(ext.id);
+        renderExtManagerList();
+      }
+    });
+    return card;
+  }
+
+  function buildMarketplaceCard(entry, alreadyInstalled) {
+    const { manifest, verified } = entry;
+    const card = document.createElement('div');
+    card.className = 'ext-card';
+    card.innerHTML = `
+      <img class="ext-icon" src="${manifest.icon}" alt="">
+      <div class="ext-card-body">
+        <div class="ext-card-title-row">
+          <strong>${manifest.name}</strong>
+          <span class="ext-card-id">${manifest.id}</span>
+          ${extBadgeHtml(verified)}
+        </div>
+        <div class="ext-card-meta">by ${manifest.author} · v${manifest.version}</div>
+        <div class="ext-card-desc">${manifest.description}</div>
+        <div class="ext-card-actions">
+          <button data-act="install" ${alreadyInstalled ? 'disabled' : ''}>${alreadyInstalled ? 'Installed' : 'Install'}</button>
+        </div>
+      </div>
+    `;
+    if (!alreadyInstalled) {
+      card.querySelector('[data-act="install"]').addEventListener('click', () => {
+        openInstallReview(manifest, { source: 'marketplace', verified });
+      });
+    }
+    return card;
+  }
+
+  function downloadExtension(ext) {
+    // mock export: real version will package the actual .studiomcbc zip.
+    // for now, just download the manifest as json so the flow is testable end-to-end.
+    const blob = new Blob([JSON.stringify(ext, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${ext.id}.studiomcbc.json`; // real format would be `${ext.id}.studiomcbc`
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ---------- extension-install ----------
+  document.getElementById('ext-install-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.getElementById('ext-install-menu').classList.toggle('show');
+  });
+  document.addEventListener('click', () => document.getElementById('ext-install-menu').classList.remove('show'));
+
+  document.getElementById('ext-browse-btn').addEventListener('click', () => openExtManager('marketplace'));
+
+  const extImportInput = document.getElementById('ext-import-input');
+  document.getElementById('ext-import-btn').addEventListener('click', () => extImportInput.click());
+
+  extImportInput.addEventListener('change', () => {
+    const file = extImportInput.files[0];
+    extImportInput.value = '';
+    if (!file) return;
+
+    // MOCK: real version will unzip the .studiomcbc and parse manifest.json.
+    // here we just pick a mock manifest and mark it as a manually-imported,
+    // unverified extension, since that's the honest default for a random local file.
+    const pool = Object.values(MOCK_EXTENSIONS);
+    const mockManifest = pool[Math.floor(Math.random() * pool.length)];
+    openInstallReview(mockManifest, { source: 'imported', verified: false });
+  });
+
+  let pendingInstall = null; // { manifest, meta } awaiting approval in the shared detail modal
+
+  function openInstallReview(manifest, meta) {
+    pendingInstall = { manifest, meta };
+    renderExtDetailModal({ manifest, meta, mode: 'install-review' });
+    document.getElementById('ext-detail-overlay').classList.add('show');
+  }
+
+  // ---------- extension-details ----------
+  function openExtDetails(id) {
+    const ext = ExtensionData.getExtension(id);
+    if (!ext) return;
+    pendingInstall = null;
+    renderExtDetailModal({ manifest: ext, meta: { source: ext.source, verified: ext.verified, installedAt: ext.installedAt, enabled: ext.enabled }, mode: 'details' });
+    document.getElementById('ext-detail-overlay').classList.add('show');
+  }
+
+  function renderExtDetailModal({ manifest, meta, mode }) {
+    document.getElementById('ext-detail-icon').src = manifest.icon;
+    document.getElementById('ext-detail-name').textContent = manifest.name;
+    document.getElementById('ext-detail-author').textContent = manifest.author;
+    document.getElementById('ext-detail-version').textContent = manifest.version;
+    document.getElementById('ext-detail-description').textContent = manifest.description;
+    document.getElementById('ext-detail-badge').outerHTML = `<span id="ext-detail-badge" class="ext-badge ${meta.verified ? 'verified' : 'unverified'}">${meta.verified ? 'Verified' : 'Unverified'}</span>`;
+
+    const warningEl = document.getElementById('ext-detail-warning');
+    if (!meta.verified) {
+      warningEl.textContent = 'This extension has not been verified by Studio.';
+      warningEl.classList.add('show');
+    } else {
+      warningEl.classList.remove('show');
+    }
+
+    document.getElementById('ext-detail-permissions').innerHTML =
+      `<div class="ext-section-label">This extension requests</div>` + renderPermissionGroups(manifest.permissions);
+
+    const infoGrid = document.getElementById('ext-detail-info');
+    infoGrid.innerHTML = `
+      <span class="label">Studio compatibility</span><span>1.0.0+</span>
+      <span class="label">Extension version</span><span>${manifest.version}</span>
+      <span class="label">Manifest format</span><span>v${manifest.formatVersion}</span>
+      <span class="label">Extension ID</span><span>${manifest.id}</span>
+      <span class="label">Source</span><span>${meta.source === 'marketplace' ? 'Marketplace' : 'Imported (.studiomcbc)'}</span>
+      ${mode === 'details' ? `<span class="label">Installed</span><span>${meta.installedAt}</span>` : ''}
+    `;
+
+    const actions = document.getElementById('ext-detail-actions');
+    if (mode === 'install-review') {
+      actions.innerHTML = `
+        <button id="ext-detail-cancel">Cancel</button>
+        <button id="ext-detail-install" class="ext-primary">Install Extension</button>
+      `;
+      document.getElementById('ext-detail-cancel').addEventListener('click', () => {
+        pendingInstall = null;
+        document.getElementById('ext-detail-overlay').classList.remove('show');
+      });
+      document.getElementById('ext-detail-install').addEventListener('click', () => {
+        ExtensionData.installExtension(manifest, meta);
+        pendingInstall = null;
+        document.getElementById('ext-detail-overlay').classList.remove('show');
+        openExtManager('installed');
+      });
+    } else {
+      actions.innerHTML = `
+        <button id="ext-detail-toggle">${meta.enabled ? 'Disable' : 'Enable'}</button>
+        <button id="ext-detail-download">Download .studiomcbc</button>
+        <button id="ext-detail-uninstall" class="ext-danger">Uninstall</button>
+      `;
+      document.getElementById('ext-detail-toggle').addEventListener('click', () => {
+        meta.enabled ? ExtensionData.disableExtension(manifest.id) : ExtensionData.enableExtension(manifest.id);
+        openExtDetails(manifest.id); // re-render with fresh state
+        renderExtManagerList();
+      });
+      document.getElementById('ext-detail-download').addEventListener('click', () => downloadExtension(ExtensionData.getExtension(manifest.id)));
+      document.getElementById('ext-detail-uninstall').addEventListener('click', () => {
+        if (confirm(`Uninstall "${manifest.name}"?`)) {
+          ExtensionData.uninstallExtension(manifest.id);
+          document.getElementById('ext-detail-overlay').classList.remove('show');
+          renderExtManagerList();
+        }
+      });
+    }
+  }
+
+  document.getElementById('ext-detail-close').addEventListener('click', () => {
+    // closing without approving an install-review counts as cancel
+    pendingInstall = null;
+    document.getElementById('ext-detail-overlay').classList.remove('show');
+  });
+
+  // ---------- extension permissions-only quick view ----------
+  function openExtPermissions(ext) {
+    document.getElementById('ext-perms-title').textContent = `${ext.name} — Permissions`;
+    document.getElementById('ext-perms-list').innerHTML = renderPermissionGroups(ext.permissions);
+    document.getElementById('ext-perms-overlay').classList.add('show');
+  }
+  document.getElementById('ext-perms-close').addEventListener('click', () => {
+    document.getElementById('ext-perms-overlay').classList.remove('show');
   });
 
   // ================= sidebar resizing + snap-close =================
