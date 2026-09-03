@@ -55,6 +55,18 @@
       --text-tab: #aaaaaa;
       --radius: 4px; /* only used where absolutely needed (modals, popups) */
       --font-mono: "Fira Code", "Consolas", "Courier New", monospace;
+
+      /* editor syntax highlighting colors — themeable like everything else */
+      --syn-keyword: #ff9900;
+      --syn-string: #05ee93;
+      --syn-number: #6d9cf6;
+      --syn-comment: #6d6d6d;
+      --syn-variable: #d4d4d4;
+      --syn-def: #6d9cf6;
+      --syn-property: #c2f66d;
+      --syn-atom: #ff00d0;
+      --syn-operator: #d4d4d4;
+      --syn-tag: #ff9900;
     }
 
     /* ===== kept from original ===== */
@@ -440,6 +452,17 @@
     .code-editor .cm-matchhighlight {
       background: rgba(5, 238, 147, 0.15);
     }
+    /* syntax token colors, themeable via the theme modal */
+    .code-editor .cm-keyword { color: var(--syn-keyword); }
+    .code-editor .cm-string, .code-editor .cm-string-2 { color: var(--syn-string); }
+    .code-editor .cm-number { color: var(--syn-number); }
+    .code-editor .cm-comment { color: var(--syn-comment); font-style: italic; }
+    .code-editor .cm-variable, .code-editor .cm-variable-2, .code-editor .cm-variable-3 { color: var(--syn-variable); }
+    .code-editor .cm-def { color: var(--syn-def); }
+    .code-editor .cm-property { color: var(--syn-property); }
+    .code-editor .cm-atom { color: var(--syn-atom); }
+    .code-editor .cm-operator, .code-editor .cm-punctuation { color: var(--syn-operator); }
+    .code-editor .cm-tag { color: var(--syn-tag); }
     .code-editor .CodeMirror-lint-marker-error {
       background: none;
     }
@@ -1905,11 +1928,25 @@
     { key: '--text-tab',      label: 'Tab/sidebar text',    default: '#aaaaaa' },
   ];
 
+  // separate list so the modal can show a "Syntax Colors" section header before these
+  const SYNTAX_VARS = [
+    { key: '--syn-keyword',  label: 'Keywords (if, const...)', default: '#ff9900' },
+    { key: '--syn-string',   label: 'Strings',                  default: '#05ee93' },
+    { key: '--syn-number',   label: 'Numbers',                  default: '#6d9cf6' },
+    { key: '--syn-comment',  label: 'Comments',                 default: '#6d6d6d' },
+    { key: '--syn-variable', label: 'Variables',                default: '#d4d4d4' },
+    { key: '--syn-def',      label: 'Function/var names',       default: '#6d9cf6' },
+    { key: '--syn-property', label: 'Object properties',        default: '#c2f66d' },
+    { key: '--syn-atom',     label: 'true/false/null',          default: '#ff00d0' },
+    { key: '--syn-operator', label: 'Operators (+ - = etc)',    default: '#d4d4d4' },
+    { key: '--syn-tag',      label: 'Tags (JSON/XML)',          default: '#ff9900' },
+  ];
+
   const THEME_STORAGE_KEY = 'mcbcode_theme_vars';
   const THEME_CSS_STORAGE_KEY = 'mcbcode_custom_css';
 
   function applyThemeVars(varsObj) {
-    THEME_VARS.forEach(v => {
+    [...THEME_VARS, ...SYNTAX_VARS].forEach(v => {
       if (varsObj[v.key]) document.documentElement.style.setProperty(v.key, varsObj[v.key]);
     });
   }
@@ -1944,7 +1981,14 @@
 
   function buildThemeGrid() {
     themeGrid.innerHTML = '';
-    THEME_VARS.forEach(v => {
+    function addSectionLabel(text) {
+      const el = document.createElement('div');
+      el.className = 'theme-section-label';
+      el.textContent = text;
+      el.style.gridColumn = '1 / -1';
+      themeGrid.appendChild(el);
+    }
+    function addRow(v) {
       const current = getComputedStyle(document.documentElement).getPropertyValue(v.key).trim() || v.default;
       const label = document.createElement('div');
       label.className = 'theme-row-label';
@@ -1955,7 +1999,11 @@
       input.dataset.varKey = v.key;
       themeGrid.appendChild(label);
       themeGrid.appendChild(input);
-    });
+    }
+    addSectionLabel('Editor Syntax Colors');
+    SYNTAX_VARS.forEach(addRow);
+    addSectionLabel('Interface Colors');
+    THEME_VARS.forEach(addRow);
   }
 
   function openThemeModal() {
@@ -1993,7 +2041,7 @@
   });
 
   document.getElementById('theme-reset').addEventListener('click', () => {
-    THEME_VARS.forEach(v => document.documentElement.style.removeProperty(v.key));
+    [...THEME_VARS, ...SYNTAX_VARS].forEach(v => document.documentElement.style.removeProperty(v.key));
     applyCustomCss('');
     localStorage.removeItem(THEME_STORAGE_KEY);
     localStorage.removeItem(THEME_CSS_STORAGE_KEY);
