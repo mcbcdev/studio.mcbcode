@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <head>
   <link rel="stylesheet" href="https://mcbcode.com/theme/site.css">
-  <link rel="icon" href="https://mcbcode.com/img/logo.png">
+  <link rel="icon" href="https://mcbcode.com/theme/favicon.png">
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <!-- pwa tags -->
   <meta name="theme-color" content="#0c0c0c">
@@ -294,6 +294,52 @@
       color: var(--text-main);
     }
 
+    /* real project file tree (replaces the demo file-items once a cloud file is open) */
+    .tree-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 12px 3px 0;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tree-row:hover {
+      background: var(--bg-6);
+    }
+    .tree-row.active {
+      background: var(--bg-7);
+      color: var(--text-main);
+    }
+    .tree-row .tree-chevron {
+      width: 14px;
+      flex-shrink: 0;
+      text-align: center;
+      font-size: 9px;
+      color: var(--text-muted);
+      transition: transform 0.1s;
+    }
+    .tree-row.collapsed .tree-chevron {
+      transform: rotate(-90deg);
+    }
+    .tree-row img {
+      width: 14px;
+      height: 14px;
+      image-rendering: pixelated;
+      flex-shrink: 0;
+    }
+    .tree-children.hidden {
+      display: none;
+    }
+    #sidebar-back-row {
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 4px;
+      padding-bottom: 6px;
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
     /* the drag handle between sidebar and editor */
     #sidebar-resizer {
       width: 4px;
@@ -475,6 +521,25 @@
       padding: 4px 8px;
       max-width: 400px;
       z-index: 200;
+    }
+
+    /* status bar strip — populated by extensions via studio.ui.registerStatusBarItem */
+    #ext-status-bar {
+      display: none;
+      flex-shrink: 0;
+      align-items: center;
+      gap: 14px;
+      padding: 3px 12px;
+      font-size: 11px;
+      color: var(--text-sub);
+      background: var(--bg-2);
+      border-top: 1px solid var(--border);
+    }
+    #ext-status-bar.show {
+      display: flex;
+    }
+    #ext-status-bar .status-item {
+      white-space: nowrap;
     }
 
     /* welcome placeholder shown when 0 tabs open */
@@ -1485,12 +1550,14 @@
     <!-- ===== sidebar / file explorer (resizable) ===== -->
     <div id="sidebar-wrap">
       <div id="sidebar">
-        <h3>Explorer</h3>
-        <div class="file-item" data-file="tab1" data-label="manifest.json" data-content="// manifest.json content goes here">manifest.json</div>
-        <div class="file-item" data-file="tab2" data-label="main.js" data-content="// main.js content goes here">main.js</div>
-        <div class="file-item" data-file="tab3" data-label="README.md" data-content="# README.md content goes here">README.md</div>
-        <!-- add more file-items here, just give each one a unique data-file value
-             that matches a tab/code-panel below -->
+        <h3 id="sidebar-title">Explorer</h3>
+        <div id="sidebar-content">
+          <div class="file-item" data-file="tab1" data-label="manifest.json" data-content="// manifest.json content goes here">manifest.json</div>
+          <div class="file-item" data-file="tab2" data-label="main.js" data-content="// main.js content goes here">main.js</div>
+          <div class="file-item" data-file="tab3" data-label="README.md" data-content="# README.md content goes here">README.md</div>
+          <!-- once a project file is opened from the cloud, this whole block gets replaced
+               by a real folder tree built from that project's files (see renderSidebarTree) -->
+        </div>
       </div>
       <div id="sidebar-resizer"></div>
     </div>
@@ -1522,13 +1589,8 @@
             <button class="welcome-btn" id="btn-new-file">New Blank File</button>
           </div>
         </div>
-        <!-- code panels get added here when a file is opened, example:
-        <div class="code-panel" data-panel="tab1">
-          <div class="code-status"></div>          <-- shows "cloud file", last saved time, Save button
-          <div class="code-editor"></div>          <-- CodeMirror mounts into this div
-        </div>
-        -->
       </div>
+      <div id="ext-status-bar"></div>
     </div>
   </div>
 
@@ -1850,6 +1912,7 @@
     document.querySelectorAll('.file-item').forEach(f => {
       f.classList.toggle('active', f.dataset.file === id);
     });
+    if (typeof setActiveTreeFileByTabId === 'function') setActiveTreeFileByTabId(id);
     updateWelcomeVisibility();
 
     // CodeMirror sizes itself based on its container at creation time, so a fresh
@@ -2072,6 +2135,7 @@
       if (wasActive && nextTab) {
         activateTab(nextTab.dataset.tab);
       } else {
+        if (wasActive) setActiveTreeFileByTabId('');
         updateWelcomeVisibility();
       }
     });
@@ -2250,6 +2314,8 @@
     try {
       const data = await api('/project?code=' + encodeURIComponent(code));
       cloudNav = { code, name, files: data.files, stack: [null] }; // stack of parent_id levels, starting at root
+      currentProject = { code, name, files: data.files }; // tracked separately from cloudNav so the sidebar tree
+                                                             // stays put even after this browser popup closes
       renderFolder();
     } catch (e) {
       cloudfileList.innerHTML = `<div class="cloudfile-error">${e.message}</div>`;
@@ -2322,9 +2388,126 @@
       const id = 'cloud_' + file.save_id;
       openTab(id, data.filename || file.name, data.content || '', file.save_id);
       cloudfileOverlay.classList.remove('show');
+      renderSidebarTree();
+      setActiveTreeFileByTabId(id);
     } catch (e) {
       cloudfileList.innerHTML = `<div class="cloudfile-error">${e.message}</div>`;
     }
+  }
+
+  // ================= sidebar: real project file tree =================
+  // once any file from a project has been opened, the sidebar swaps its demo items
+  // for the rest of that project's real files/folders. clicking a folder expands it
+  // in place; clicking a file opens/switches to its tab, same as the cloud browser.
+  let currentProject = null; // { code, name, files } — set by openProject() above
+  const collapsedFolders = new Set(); // folder ids the user has manually collapsed
+
+  function renderSidebarTree() {
+    const sidebarContent = document.getElementById('sidebar-content');
+    const sidebarTitle = document.getElementById('sidebar-title');
+
+    if (!currentProject) {
+      // no project open yet — leave the default demo file-items alone
+      return;
+    }
+
+    sidebarTitle.textContent = currentProject.name;
+    sidebarContent.innerHTML = '';
+
+    const backRow = document.createElement('div');
+    backRow.id = 'sidebar-back-row';
+    backRow.className = 'tree-row';
+    backRow.innerHTML = `<img src="https://mcbcode.com/img/icons/folderup.png" alt=""><span>Close Project</span>`;
+    backRow.addEventListener('click', () => {
+      currentProject = null;
+      collapsedFolders.clear();
+      sidebarTitle.textContent = 'Explorer';
+      sidebarContent.innerHTML = `
+        <div class="file-item" data-file="tab1" data-label="manifest.json" data-content="// manifest.json content goes here">manifest.json</div>
+        <div class="file-item" data-file="tab2" data-label="main.js" data-content="// main.js content goes here">main.js</div>
+        <div class="file-item" data-file="tab3" data-label="README.md" data-content="# README.md content goes here">README.md</div>
+      `;
+      attachDemoFileItemEvents();
+    });
+    sidebarContent.appendChild(backRow);
+
+    const treeRoot = document.createElement('div');
+    sidebarContent.appendChild(treeRoot);
+    buildTreeLevel(treeRoot, null, 0);
+  }
+
+  function buildTreeLevel(container, parentId, depth) {
+    const children = currentProject.files
+      .filter(f => (f.parent_id ?? null) === parentId)
+      .sort((a, b) => {
+        if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+
+    children.forEach(f => {
+      const row = document.createElement('div');
+      row.className = 'tree-row';
+      row.style.paddingLeft = (depth * 14 + 4) + 'px';
+
+      if (f.type === 'folder') {
+        const isCollapsed = collapsedFolders.has(f.id);
+        row.classList.toggle('collapsed', isCollapsed);
+        row.innerHTML = `<span class="tree-chevron">▾</span><img src="https://mcbcode.com/img/icons/folder.png" alt=""><span>${f.name}</span>`;
+        container.appendChild(row);
+
+        const childWrap = document.createElement('div');
+        childWrap.className = 'tree-children' + (isCollapsed ? ' hidden' : '');
+        container.appendChild(childWrap);
+        buildTreeLevel(childWrap, f.id, depth + 1);
+
+        row.addEventListener('click', () => {
+          if (collapsedFolders.has(f.id)) collapsedFolders.delete(f.id);
+          else collapsedFolders.add(f.id);
+          renderSidebarTree();
+        });
+      } else {
+        row.dataset.fileId = f.id;
+        row.innerHTML = `<span class="tree-chevron"></span><img src="https://mcbcode.com/img/icons/file.png" alt=""><span>${f.name}</span>`;
+        row.addEventListener('click', () => openProjectTreeFile(f));
+        container.appendChild(row);
+      }
+    });
+  }
+
+  async function openProjectTreeFile(file) {
+    if (!file.save_id) {
+      alert("That file isn't a text file (it's an image or binary asset), so it can't be opened in the code editor.");
+      return;
+    }
+    try {
+      const data = await api('/save?id=' + encodeURIComponent(file.save_id));
+      const id = 'cloud_' + file.save_id;
+      openTab(id, data.filename || file.name, data.content || '', file.save_id);
+      setActiveTreeFileByTabId(id);
+    } catch (e) {
+      alert("Couldn't open that file: " + e.message);
+    }
+  }
+
+  // highlights whichever tree row matches the tab that's currently open, so the
+  // sidebar shows what you're actually looking at
+  function setActiveTreeFileByTabId(tabId) {
+    if (!currentProject) return;
+    const saveId = tabId.startsWith('cloud_') ? tabId.slice('cloud_'.length) : null;
+    document.querySelectorAll('#sidebar-content .tree-row[data-file-id]').forEach(row => {
+      const f = currentProject.files.find(x => String(x.id) === row.dataset.fileId);
+      row.classList.toggle('active', !!(f && saveId && f.save_id === saveId));
+    });
+  }
+
+  // the demo file-items need their click handler re-attached every time they're
+  // rebuilt (e.g. after closing a project back to the default state)
+  function attachDemoFileItemEvents() {
+    document.querySelectorAll('#sidebar-content .file-item').forEach(file => {
+      file.addEventListener('click', () => {
+        openTab(file.dataset.file, file.dataset.label, file.dataset.content);
+      });
+    });
   }
 
   // ================= custom theme system =================
@@ -2600,6 +2783,117 @@
     };
   })();
 
+  // ---------- extension-runtime ----------
+  // this is the real (if minimal) execution layer. an extension's code runs inside
+  // a sandboxed <iframe sandbox="allow-scripts"> — no allow-same-origin, so it can't
+  // touch this page's DOM, cookies, or storage directly. the only way in or out is
+  // the postMessage bridge below, which currently exposes exactly two capabilities:
+  // studio.ui.registerCommand and studio.ui.registerStatusBarItem. everything else
+  // in the permission model (network/workspace/editor/bedrock) is still declared
+  // and shown to the user, but not yet wired to a real capability — that's next.
+  const ExtensionRuntime = (function () {
+    const running = {}; // id -> { iframe, commands: [{id,label}] }
+
+    function statusBarEl() { return document.getElementById('ext-status-bar'); }
+    function refreshStatusBarVisibility() {
+      const bar = statusBarEl();
+      bar.classList.toggle('show', bar.children.length > 0);
+    }
+    function addStatusBarItem(extId, itemId, text) {
+      const bar = statusBarEl();
+      const span = document.createElement('span');
+      span.className = 'status-item';
+      span.id = `status-${extId}-${itemId}`;
+      span.textContent = text; // textContent only — never innerHTML, this comes from extension code
+      bar.appendChild(span);
+      refreshStatusBarVisibility();
+    }
+    function removeAllStatusBarItemsFor(extId) {
+      statusBarEl().querySelectorAll(`[id^="status-${extId}-"]`).forEach(el => el.remove());
+      refreshStatusBarVisibility();
+    }
+
+    function start(ext) {
+      if (running[ext.id]) return;       // already running
+      if (!ext.code) return;             // manifest-only mock (marketplace-browse-only entries) — nothing to execute
+
+      const iframe = document.createElement('iframe');
+      iframe.setAttribute('sandbox', 'allow-scripts'); // deliberately no allow-same-origin
+      iframe.style.display = 'none';
+
+      // bootstrap defines the extension-facing `studio` object. every call it makes
+      // just posts a message up to the real page — the extension never gets a direct
+      // reference to anything outside its own iframe.
+      const bootstrap = `
+        <script>
+          window.__commands = {};
+          window.studio = {
+            ui: {
+              registerCommand: function (opts) {
+                window.__commands[opts.id] = opts.run;
+                parent.postMessage({ type: 'studio-ext-call', extId: ${JSON.stringify(ext.id)}, method: 'registerCommand', payload: { id: opts.id, label: opts.label } }, '*');
+              },
+              registerStatusBarItem: function (opts) {
+                parent.postMessage({ type: 'studio-ext-call', extId: ${JSON.stringify(ext.id)}, method: 'registerStatusBarItem', payload: { id: opts.id, text: String(opts.text) } }, '*');
+              }
+            }
+          };
+          window.addEventListener('message', function (e) {
+            if (e.data && e.data.type === 'studio-run-command' && e.data.extId === ${JSON.stringify(ext.id)}) {
+              var fn = window.__commands[e.data.commandId];
+              if (fn) { try { fn(); } catch (err) { console.error('[extension error]', err); } }
+            }
+          });
+        <\/script>
+        <script>${ext.code}<\/script>
+      `;
+      iframe.srcdoc = bootstrap;
+      document.body.appendChild(iframe);
+      running[ext.id] = { iframe, commands: [] };
+    }
+
+    function stop(id) {
+      const r = running[id];
+      if (!r) return;
+      r.iframe.remove();
+      removeAllStatusBarItemsFor(id);
+      delete running[id];
+    }
+
+    function handleMessage(extId, method, payload) {
+      const r = running[extId];
+      if (!r) return;
+      if (method === 'registerCommand') {
+        if (!r.commands.some(c => c.id === payload.id)) r.commands.push(payload);
+      } else if (method === 'registerStatusBarItem') {
+        addStatusBarItem(extId, payload.id, payload.text);
+      }
+    }
+
+    window.addEventListener('message', (e) => {
+      const data = e.data;
+      if (data && data.type === 'studio-ext-call') {
+        handleMessage(data.extId, data.method, data.payload);
+        // if the extension's details modal happens to be open, refresh its command list
+        if (document.getElementById('ext-detail-overlay').classList.contains('show')) {
+          refreshOpenDetailCommandsIfMatching(data.extId);
+        }
+      }
+    });
+
+    function getCommands(id) {
+      return running[id] ? running[id].commands : [];
+    }
+    function runCommand(extId, commandId) {
+      const r = running[extId];
+      if (!r) return;
+      r.iframe.contentWindow.postMessage({ type: 'studio-run-command', extId, commandId }, '*');
+    }
+    function isRunning(id) { return !!running[id]; }
+
+    return { start, stop, getCommands, runCommand, isRunning };
+  })();
+
   // ---------- mock manifests ----------
   // shape mirrors the real future .studiomcbc manifest (formatVersion, id, permissions, contributes, etc).
   const MOCK_EXTENSIONS = {
@@ -2617,7 +2911,21 @@
         workspace: ['read'],
         editor: ['read']
       },
-      contributes: { commands: ['wiki.search'], panels: ['wiki.sidebar'], editor: {} }
+      contributes: { commands: ['wiki.search'], panels: ['wiki.sidebar'], editor: {} },
+      // real, sandboxed extension code — runs inside an isolated iframe via the studio.ui bridge.
+      // this is the interim runtime: only registerCommand/registerStatusBarItem are wired to
+      // anything real right now. network/workspace/editor/bedrock permissions are still just
+      // declared+displayed, not yet enforced capabilities.
+      code: `
+        studio.ui.registerCommand({
+          id: 'wiki.search',
+          label: 'Search Minecraft Wiki',
+          run: function () {
+            alert('Minecraft Wiki extension: this is where a wiki search box would open. (demo — proves the extension is really executing in its own sandbox)');
+          }
+        });
+        studio.ui.registerStatusBarItem({ id: 'wiki.status', text: 'Wiki ready' });
+      `
     },
     mcfTools: {
       formatVersion: 1,
@@ -2633,7 +2941,17 @@
         editor: ['read', 'modify'],
         ui: ['registerCommands', 'registerPanels']
       },
-      contributes: { commands: ['mcf.formatFile'], panels: [], editor: {} }
+      contributes: { commands: ['mcf.formatFile'], panels: [], editor: {} },
+      code: `
+        studio.ui.registerCommand({
+          id: 'mcf.formatFile',
+          label: 'Format mcfunction File',
+          run: function () {
+            alert('mcfunction Tools: formatting is a demo action for now — this alert is running from inside the extension\\'s own sandboxed iframe, not the main page.');
+          }
+        });
+        studio.ui.registerStatusBarItem({ id: 'mcf.status', text: 'mcfunction Tools active' });
+      `
     },
     textureHelper: {
       formatVersion: 1,
@@ -2681,6 +2999,12 @@
     ExtensionData.installExtension(MOCK_EXTENSIONS.wiki, { source: 'marketplace', verified: true });
     ExtensionData.installExtension(MOCK_EXTENSIONS.mcfTools, { source: 'imported', verified: false });
   })();
+
+  // boot every enabled installed extension that has real code, so extensions
+  // stay "running" across page reloads just like a real IDE would
+  ExtensionData.getInstalledExtensions().forEach(ext => {
+    if (ext.enabled && ext.code) ExtensionRuntime.start(ext);
+  });
 
   // ---------- extension-permissions (shared rendering helpers) ----------
   const PERMISSION_LABELS = {
@@ -2779,13 +3103,20 @@
     `;
     card.querySelector('[data-act="manage"]').addEventListener('click', () => openExtDetails(ext.id));
     card.querySelector('[data-act="toggle"]').addEventListener('click', () => {
-      ext.enabled ? ExtensionData.disableExtension(ext.id) : ExtensionData.enableExtension(ext.id);
+      if (ext.enabled) {
+        ExtensionData.disableExtension(ext.id);
+        ExtensionRuntime.stop(ext.id);
+      } else {
+        ExtensionData.enableExtension(ext.id);
+        ExtensionRuntime.start(ExtensionData.getExtension(ext.id));
+      }
       renderExtManagerList();
     });
     card.querySelector('[data-act="perms"]').addEventListener('click', () => openExtPermissions(ext));
     card.querySelector('[data-act="download"]').addEventListener('click', () => downloadExtension(ext));
     card.querySelector('[data-act="uninstall"]').addEventListener('click', () => {
       if (confirm(`Uninstall "${ext.name}"?`)) {
+        ExtensionRuntime.stop(ext.id);
         ExtensionData.uninstallExtension(ext.id);
         renderExtManagerList();
       }
@@ -2821,13 +3152,16 @@
   }
 
   function downloadExtension(ext) {
-    // mock export: real version will package the actual .studiomcbc zip.
-    // for now, just download the manifest as json so the flow is testable end-to-end.
-    const blob = new Blob([JSON.stringify(ext, null, 2)], { type: 'application/json' });
+    // interim .studiomcbc format: JSON containing the manifest fields plus the
+    // extension's real code. real version will package this as an actual zip,
+    // but this round-trips correctly with the import flow below right now.
+    const { enabled, verified, source, installedAt, ...manifestOnly } = ext;
+    const payload = { manifest: manifestOnly, code: ext.code || '' };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${ext.id}.studiomcbc.json`; // real format would be `${ext.id}.studiomcbc`
+    a.download = `${ext.id}.studiomcbc`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -2849,12 +3183,28 @@
     extImportInput.value = '';
     if (!file) return;
 
-    // MOCK: real version will unzip the .studiomcbc and parse manifest.json.
-    // here we just pick a mock manifest and mark it as a manually-imported,
-    // unverified extension, since that's the honest default for a random local file.
-    const pool = Object.values(MOCK_EXTENSIONS);
-    const mockManifest = pool[Math.floor(Math.random() * pool.length)];
-    openInstallReview(mockManifest, { source: 'imported', verified: false });
+    const reader = new FileReader();
+    reader.onload = () => {
+      let manifest, hasRealCode = false;
+      try {
+        const parsed = JSON.parse(reader.result);
+        if (parsed && parsed.manifest && parsed.manifest.id) {
+          manifest = { ...parsed.manifest, code: parsed.code || '' };
+          hasRealCode = !!parsed.code;
+        } else {
+          throw new Error('not the expected format');
+        }
+      } catch {
+        // not a real .studiomcbc (manifest+code) file — fall back to a mock manifest
+        // so the review flow is still testable with an arbitrary file
+        const pool = Object.values(MOCK_EXTENSIONS);
+        manifest = pool[Math.floor(Math.random() * pool.length)];
+      }
+      // manually imported files are unverified unless mock data explicitly says otherwise —
+      // real .studiomcbc files a person built themselves are never "verified"
+      openInstallReview(manifest, { source: 'imported', verified: false });
+    };
+    reader.readAsText(file);
   });
 
   let pendingInstall = null; // { manifest, meta } awaiting approval in the shared detail modal
@@ -2875,6 +3225,10 @@
   }
 
   function renderExtDetailModal({ manifest, meta, mode }) {
+    document.getElementById('ext-detail-name').dataset.extId = manifest.id;
+    const existingCommandsSection = document.getElementById('ext-detail-commands-section');
+    if (existingCommandsSection) existingCommandsSection.remove();
+
     document.getElementById('ext-detail-icon').src = manifest.icon;
     document.getElementById('ext-detail-name').textContent = manifest.name;
     document.getElementById('ext-detail-author').textContent = manifest.author;
@@ -2914,7 +3268,8 @@
         document.getElementById('ext-detail-overlay').classList.remove('show');
       });
       document.getElementById('ext-detail-install').addEventListener('click', () => {
-        ExtensionData.installExtension(manifest, meta);
+        const record = ExtensionData.installExtension(manifest, meta);
+        ExtensionRuntime.start(record);
         pendingInstall = null;
         document.getElementById('ext-detail-overlay').classList.remove('show');
         openExtManager('installed');
@@ -2926,18 +3281,65 @@
         <button id="ext-detail-uninstall" class="ext-danger">Uninstall</button>
       `;
       document.getElementById('ext-detail-toggle').addEventListener('click', () => {
-        meta.enabled ? ExtensionData.disableExtension(manifest.id) : ExtensionData.enableExtension(manifest.id);
+        if (meta.enabled) {
+          ExtensionData.disableExtension(manifest.id);
+          ExtensionRuntime.stop(manifest.id);
+        } else {
+          ExtensionData.enableExtension(manifest.id);
+          ExtensionRuntime.start(ExtensionData.getExtension(manifest.id));
+        }
         openExtDetails(manifest.id); // re-render with fresh state
         renderExtManagerList();
       });
       document.getElementById('ext-detail-download').addEventListener('click', () => downloadExtension(ExtensionData.getExtension(manifest.id)));
       document.getElementById('ext-detail-uninstall').addEventListener('click', () => {
         if (confirm(`Uninstall "${manifest.name}"?`)) {
+          ExtensionRuntime.stop(manifest.id);
           ExtensionData.uninstallExtension(manifest.id);
           document.getElementById('ext-detail-overlay').classList.remove('show');
           renderExtManagerList();
         }
       });
+
+      renderDetailCommands(manifest.id);
+      // registerCommand messages from the iframe arrive asynchronously right after it
+      // boots, so give it a beat and refresh the commands list once more
+      setTimeout(() => renderDetailCommands(manifest.id), 300);
+    }
+  }
+
+  // shows whatever commands the running extension has actually registered, with
+  // a Run button that posts the real command back into its sandboxed iframe
+  function renderDetailCommands(extId) {
+    // only touch the DOM if this extension's details modal is still the one open
+    if (document.getElementById('ext-detail-name').dataset.extId !== extId) {
+      document.getElementById('ext-detail-name').dataset.extId = extId;
+    }
+    let section = document.getElementById('ext-detail-commands-section');
+    if (!section) {
+      section = document.createElement('div');
+      section.id = 'ext-detail-commands-section';
+      document.getElementById('ext-detail-permissions').insertAdjacentElement('afterend', section);
+    }
+    if (!ExtensionRuntime.isRunning(extId)) {
+      section.innerHTML = '';
+      return;
+    }
+    const commands = ExtensionRuntime.getCommands(extId);
+    if (!commands.length) {
+      section.innerHTML = `<div class="ext-section-label">Commands</div><div class="ext-empty">This extension hasn't registered any commands yet.</div>`;
+      return;
+    }
+    section.innerHTML = `<div class="ext-section-label">Commands</div>` + commands.map(c =>
+      `<div class="ext-perm-item"><span>${c.label}</span><button class="ext-run-cmd" data-cmd="${c.id}" style="margin-left:auto;background:var(--bg-6);border:1px solid var(--border-strong);color:#eee;padding:2px 8px;cursor:pointer;font-size:11px;font-family:var(--font-mono);">Run</button></div>`
+    ).join('');
+    section.querySelectorAll('.ext-run-cmd').forEach(btn => {
+      btn.addEventListener('click', () => ExtensionRuntime.runCommand(extId, btn.dataset.cmd));
+    });
+  }
+  function refreshOpenDetailCommandsIfMatching(extId) {
+    if (document.getElementById('ext-detail-name').dataset.extId === extId) {
+      renderDetailCommands(extId);
     }
   }
 
