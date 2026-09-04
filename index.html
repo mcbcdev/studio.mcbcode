@@ -396,6 +396,9 @@
       background: var(--bg-3);
       padding: 0 3px;
       cursor: text;
+      -webkit-user-select: text;
+      -moz-user-select: text;
+      user-select: text;
     }
     .tab .dirty-dot {
       width: 6px;
@@ -462,6 +465,87 @@
     .code-status button:hover {
       border-color: var(--accent);
       color: var(--accent);
+    }
+    .save-state-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #05ee93; /* synced/saved */
+      flex-shrink: 0;
+    }
+    .save-state-dot.unsaved {
+      background: #ff4d4d;
+    }
+
+    /* find/replace bar, appears over the top-right of the editor when Ctrl+F/Ctrl+H is used */
+    .find-replace-bar {
+      display: none;
+      position: absolute;
+      top: 8px;
+      right: 24px;
+      z-index: 20;
+      background: var(--bg-4);
+      border: 1px solid var(--border-strong);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+      padding: 6px;
+    }
+    .find-replace-bar.show {
+      display: block;
+    }
+    .fr-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+    .fr-row:last-child {
+      margin-bottom: 0;
+    }
+    .fr-row.hidden {
+      display: none;
+    }
+    .find-replace-bar input {
+      background: var(--bg-3);
+      border: 1px solid var(--border-strong);
+      color: #eee;
+      padding: 4px 6px;
+      font-size: 12px;
+      font-family: var(--font-mono);
+      width: 150px;
+    }
+    .find-replace-bar input:focus {
+      outline: 1px solid var(--accent);
+    }
+    .find-replace-bar button {
+      background: var(--bg-6);
+      border: 1px solid var(--border-strong);
+      color: #eee;
+      padding: 3px 7px;
+      cursor: pointer;
+      font-size: 12px;
+      font-family: var(--font-mono);
+      flex-shrink: 0;
+    }
+    .find-replace-bar button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .fr-count {
+      font-size: 11px;
+      color: var(--text-muted);
+      min-width: 40px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .fr-count.no-matches {
+      color: #ff4d4d;
+    }
+    .cm-fr-match {
+      background: rgba(255, 176, 32, 0.35);
+    }
+    .cm-fr-match-current {
+      background: var(--accent);
+      color: #06251b !important;
     }
     /* CodeMirror mount point — fills the panel, no stray padding around it */
     .code-editor {
@@ -1924,9 +2008,9 @@
   }
 
   // ================= CodeMirror + cloud-file tracking =================
-  // one entry per open tab id: { cm, saveId, dirty }
-  // saveId is set only for files opened from the cloud browser — that's what
-  // ties Ctrl+S back to POST /save on the right database row.
+  // one entry per open tab id: { cm, saveId, dirty, fileId, projectCode }
+  // saveId/fileId/projectCode are only set for files opened from the cloud browser —
+  // that's what ties Ctrl+S and renaming back to the right database row.
   const editors = {};
 
   // picks a syntax mode based on the file's extension, defaults to plain js-ish highlighting
@@ -1934,7 +2018,8 @@
     const ext = (name.split('.').pop() || '').toLowerCase();
     if (ext === 'md') return 'markdown';
     if (ext === 'json') return { name: 'javascript', json: true };
-    if (ext === 'mcfunction' || ext === 'sh' || ext === 'txt') return 'shell';
+    if (ext === 'mcfunction') return 'mcfunction'; // custom mode, defined further down
+    if (ext === 'sh' || ext === 'txt') return 'shell';
     return 'javascript';
   }
 
@@ -1951,17 +2036,15 @@
     entry.dirty = dirty;
     const tab = document.querySelector(`.tab[data-tab="${id}"]`);
     if (tab) tab.classList.toggle('dirty', dirty);
-    const statusEl = document.querySelector(`.code-panel[data-panel="${id}"] .code-status`);
-    if (statusEl) {
-      const savedLabel = statusEl.querySelector('.status-label');
-      if (savedLabel) savedLabel.textContent = dirty ? 'unsaved changes' : 'saved';
-    }
+    const dot = document.querySelector(`.code-panel[data-panel="${id}"] .save-state-dot`);
+    if (dot) dot.classList.toggle('unsaved', dirty);
   }
 
   // ================= tabs: opening =================
-  // saveId: pass a save_id string for cloud files so Ctrl+S/Save syncs back to the db.
-  // leave undefined for local/new/scratch files (Save just shows a "can't save" note).
-  function openTab(id, label, content, saveId) {
+  // saveId/fileId/projectCode: pass these for cloud files so Ctrl+S syncs content
+  // and renaming syncs the filename back to the right project. leave them undefined
+  // for local/new/scratch files (Save just shows a "can't save" note; rename stays local-only).
+  function openTab(id, label, content, saveId, fileId, projectCode) {
     let tab = document.querySelector(`.tab[data-tab="${id}"]`);
 
     if (!tab) {
@@ -1981,10 +2064,30 @@
       status.className = 'code-status';
       if (saveId) {
         status.classList.add('show');
-        status.innerHTML = `<span>☁ synced to your mcbCode account</span><span class="status-label">saved</span><button class="save-btn">Save</button>`;
+        // green dot = saved/synced, red dot = unsaved changes, toggled by markDirty()
+        status.innerHTML = `<span class="save-state-dot"></span><span>synced to your mcbCode account</span><button class="save-btn">Save</button>`;
         status.querySelector('.save-btn').addEventListener('click', () => saveTab(id));
       }
       panel.appendChild(status);
+
+      const findBar = document.createElement('div');
+      findBar.className = 'find-replace-bar';
+      findBar.innerHTML = `
+        <div class="fr-row">
+          <input type="text" class="fr-find-input" placeholder="Find">
+          <span class="fr-count">0/0</span>
+          <button class="fr-prev" title="Previous match">˄</button>
+          <button class="fr-next" title="Next match">˅</button>
+          <button class="fr-toggle-replace" title="Toggle replace">⇄</button>
+          <button class="fr-close" title="Close">&times;</button>
+        </div>
+        <div class="fr-row fr-replace-row hidden">
+          <input type="text" class="fr-replace-input" placeholder="Replace">
+          <button class="fr-replace-one">Replace</button>
+          <button class="fr-replace-all">Replace All</button>
+        </div>
+      `;
+      panel.appendChild(findBar);
 
       const editorWrap = document.createElement('div');
       editorWrap.className = 'code-editor';
@@ -1992,6 +2095,13 @@
       codeArea.appendChild(panel);
 
       const isLintable = lintableFilename(label);
+      const isMcfunction = modeForFilename(label) === 'mcfunction';
+      const gutters = isLintable
+        ? ['CodeMirror-linenumbers', 'CodeMirror-lint-markers']
+        : isMcfunction
+          ? ['CodeMirror-linenumbers', 'mcf-error-gutter']
+          : ['CodeMirror-linenumbers'];
+
       const cm = CodeMirror(editorWrap, {
         value: content,
         mode: modeForFilename(label),
@@ -2002,17 +2112,31 @@
         styleActiveLine: true,
         indentUnit: 2,
         tabSize: 2,
-        gutters: isLintable ? ['CodeMirror-linenumbers', 'CodeMirror-lint-markers'] : ['CodeMirror-linenumbers'],
+        gutters,
         lint: isLintable ? { esversion: 11, asi: true, undef: false, unused: false } : false,
         extraKeys: {
           'Shift-Tab': 'indentLess',
           'Ctrl-S': () => saveTab(id),
-          'Cmd-S': () => saveTab(id)
+          'Cmd-S': () => saveTab(id),
+          'Ctrl-F': () => openFindReplace(id, false),
+          'Cmd-F': () => openFindReplace(id, false),
+          'Ctrl-H': () => openFindReplace(id, true),
+          'Cmd-Alt-F': () => openFindReplace(id, true),
+          'Esc': () => closeFindReplace(id)
         }
       });
 
-      editors[id] = { cm, saveId: saveId || null, dirty: false };
+      editors[id] = { cm, saveId: saveId || null, fileId: fileId || null, projectCode: projectCode || null, dirty: false };
       cm.on('change', () => markDirty(id, true));
+
+      if (isMcfunction) {
+        mcfunctionEditors.add(cm);
+        setTimeout(() => updateMcfErrorGutter(cm), 0);
+        cm.on('changes', () => {
+          clearTimeout(cm._mcfGutterTimer);
+          cm._mcfGutterTimer = setTimeout(() => updateMcfErrorGutter(cm), 250);
+        });
+      }
 
       attachTabEvents(tab);
       attachCloseEvent(tab.querySelector('.close-btn'));
@@ -2043,25 +2167,25 @@
   async function saveTab(id) {
     const entry = editors[id];
     if (!entry) return;
-    const statusEl = document.querySelector(`.code-panel[data-panel="${id}"] .code-status .status-label`);
+    const dot = document.querySelector(`.code-panel[data-panel="${id}"] .save-state-dot`);
 
     if (!entry.saveId) {
       // local/new file — nothing on the server to sync to
-      if (statusEl) { statusEl.textContent = "not a cloud file, can't save to your account"; }
+      alert("This isn't a cloud file, so there's nothing to sync it to yet — save/download it locally instead.");
       return;
     }
     const tabLabelEl = document.querySelector(`.tab[data-tab="${id}"] .tab-label`);
     const filename = tabLabelEl ? tabLabelEl.textContent : 'untitled';
 
     try {
-      if (statusEl) statusEl.textContent = 'saving...';
       await api('/save', {
         method: 'POST',
         body: JSON.stringify({ save_id: entry.saveId, content: entry.cm.getValue(), filename })
       });
       markDirty(id, false);
     } catch (e) {
-      if (statusEl) statusEl.textContent = 'save failed: ' + e.message;
+      if (dot) dot.title = 'save failed: ' + e.message;
+      alert("Couldn't save: " + e.message);
     }
   }
 
@@ -2077,8 +2201,10 @@
   });
 
   // ================= tabs: renaming (double-click the label) =================
-  // NOTE: this only renames the tab's display label locally. it does not rename
-  // the file server-side — there's no rename endpoint wired up for that yet.
+  // for cloud files (opened from the file browser or the project tree), this also
+  // renames the real file server-side via POST /project/file, using the same
+  // file_id + project_code the file was opened with. local/scratch files just
+  // rename locally since there's nothing on the server to rename.
   function attachRenameEvent(labelEl, id) {
     labelEl.addEventListener('dblclick', (e) => {
       e.stopPropagation();
@@ -2087,16 +2213,48 @@
       document.execCommand('selectAll', false, null);
     });
 
-    function finishRename() {
+    let originalName = labelEl.textContent;
+    labelEl.addEventListener('focus', () => { originalName = labelEl.textContent; });
+
+    async function finishRename() {
       labelEl.contentEditable = 'false';
       const newName = labelEl.textContent.trim() || 'untitled';
       labelEl.textContent = newName;
 
-      // keep the sidebar file entry (if any) in sync with the new name
+      if (newName === originalName) return;
+
+      // keep the sidebar demo file entry (if any) in sync with the new name
       const fileItem = document.querySelector(`.file-item[data-file="${id}"]`);
       if (fileItem) {
         fileItem.textContent = newName;
         fileItem.dataset.label = newName;
+      }
+
+      const entry = editors[id];
+      if (!entry || !entry.fileId || !entry.projectCode) return; // not a cloud file, local rename only
+
+      try {
+        await api('/project/file', {
+          method: 'POST',
+          body: JSON.stringify({
+            project_code: entry.projectCode,
+            file_id: entry.fileId,
+            name: newName,
+            type: 'file',
+            content: entry.cm.getValue()
+          })
+        });
+        // keep the in-memory project file lists in sync so the sidebar tree
+        // and cloud browser show the new name without needing a refetch
+        [currentProject, cloudNav].forEach(proj => {
+          if (!proj) return;
+          const f = proj.files.find(x => x.id === entry.fileId);
+          if (f) f.name = newName;
+        });
+        renderSidebarTree();
+      } catch (err) {
+        labelEl.textContent = originalName; // revert on failure
+        alert("Couldn't rename that file: " + err.message);
       }
     }
 
@@ -2104,6 +2262,10 @@
     labelEl.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
+        labelEl.blur();
+      }
+      if (e.key === 'Escape') {
+        labelEl.textContent = originalName;
         labelEl.blur();
       }
     });
@@ -2386,7 +2548,7 @@
     try {
       const data = await api('/save?id=' + encodeURIComponent(file.save_id));
       const id = 'cloud_' + file.save_id;
-      openTab(id, data.filename || file.name, data.content || '', file.save_id);
+      openTab(id, data.filename || file.name, data.content || '', file.save_id, file.id, cloudNav ? cloudNav.code : null);
       cloudfileOverlay.classList.remove('show');
       renderSidebarTree();
       setActiveTreeFileByTabId(id);
@@ -2482,7 +2644,7 @@
     try {
       const data = await api('/save?id=' + encodeURIComponent(file.save_id));
       const id = 'cloud_' + file.save_id;
-      openTab(id, data.filename || file.name, data.content || '', file.save_id);
+      openTab(id, data.filename || file.name, data.content || '', file.save_id, file.id, currentProject ? currentProject.code : null);
       setActiveTreeFileByTabId(id);
     } catch (e) {
       alert("Couldn't open that file: " + e.message);
