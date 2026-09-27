@@ -596,6 +596,16 @@
     .code-editor .CodeMirror-lint-marker-error {
       background: none;
     }
+    .code-editor .CodeMirror-gutter.mcf-error-gutter {
+      width: 14px;
+    }
+    .mcf-gutter-marker {
+      color: #ff4d4d;
+      font-size: 10px;
+      line-height: 1.6;
+      text-align: center;
+      cursor: help;
+    }
     .code-editor .CodeMirror-lint-tooltip {
       background: var(--bg-4);
       border: 1px solid var(--border-strong);
@@ -1698,7 +1708,7 @@
         <div class="shortcut-row"><span>Duplicate line</span><span class="keys" data-win="Ctrl + Shift + D" data-mac="Cmd + Shift + D">Ctrl + Shift + D</span></div>
         <div class="shortcut-row"><span>Toggle line comment</span><span class="keys" data-win="Ctrl + /" data-mac="Cmd + /">Ctrl + /</span></div>
         <div class="shortcut-row"><span>Find</span><span class="keys" data-win="Ctrl + F" data-mac="Cmd + F">Ctrl + F</span></div>
-        <div class="shortcut-row"><span>Find and replace</span><span class="keys" data-win="Ctrl + Alt + F" data-mac="Cmd + Option + F">Ctrl + Alt + F</span></div>
+        <div class="shortcut-row"><span>Find and replace</span><span class="keys" data-win="Ctrl + H" data-mac="Cmd + Option + F">Ctrl + H</span></div>
         <div class="shortcut-row"><span>Indent / outdent selection</span><span class="keys" data-win="Tab / Shift + Tab" data-mac="Tab / Shift + Tab">Tab / Shift + Tab</span></div>
         <div class="shortcut-row"><span>Save (cloud files sync to your account)</span><span class="keys" data-win="Ctrl + S" data-mac="Cmd + S">Ctrl + S</span></div>
         <div class="shortcut-row"><span>Rename tab (display name only)</span><span class="keys" data-win="Double-click tab name" data-mac="Double-click tab name">Double-click tab name</span></div>
@@ -2003,7 +2013,15 @@
     // instance mounted while its tab was hidden renders broken until this is called
     const entry = editors[id];
     if (entry) {
-      setTimeout(() => { entry.cm.refresh(); entry.cm.focus(); }, 0);
+      setTimeout(() => {
+        entry.cm.refresh();
+        // don't steal focus if a tab label is mid-rename (e.g. the two click events that
+        // precede a dblclick both call activateTab, and would otherwise blur the label
+        // the instant the rename starts)
+        if (!document.activeElement || !document.activeElement.isContentEditable) {
+          entry.cm.focus();
+        }
+      }, 0);
     }
   }
 
@@ -2012,6 +2030,72 @@
   // saveId/fileId/projectCode are only set for files opened from the cloud browser —
   // that's what ties Ctrl+S and renaming back to the right database row.
   const editors = {};
+
+  // tracks which CodeMirror instances are currently editing a .mcfunction file, so the
+  // gutter-refresh logic below only ever runs against real mcfunction editors
+  const mcfunctionEditors = new Set();
+
+  // lightweight .mcfunction linter — not a full command parser (that needs real per-command
+  // grammar), just catches the syntax mistakes that silently break a function in-game:
+  // unbalanced [] (selectors), {} (JSON text components in tellraw/title/etc), () and
+  // unterminated quotes. Returns a short message for the gutter tooltip, or null if the
+  // line looks fine.
+  function checkMcfunctionLine(text) {
+    const trimmed = text.trim();
+    if (!trimmed || trimmed.startsWith('#')) return null; // blank line / comment — nothing to check
+
+    const pairs = [['[', ']', 'selector argument'], ['{', '}', 'JSON block'], ['(', ')', 'parenthesis']];
+    for (const [open, close, label] of pairs) {
+      let depth = 0;
+      let inString = null;
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if (inString) {
+          if (ch === '\\') { i++; continue; } // skip escaped char inside the string
+          if (ch === inString) inString = null;
+          continue;
+        }
+        if (ch === '"' || ch === "'") { inString = ch; continue; }
+        if (ch === open) depth++;
+        else if (ch === close) depth--;
+        if (depth < 0) return `Unmatched "${close}" — extra closing ${label}`;
+      }
+      if (depth > 0) return `Unclosed "${open}" — ${depth} ${label}${depth > 1 ? 's' : ''} not closed`;
+    }
+
+    // an unterminated quote (missing closing " or ') usually breaks the whole command
+    let inString = null;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (inString) {
+        if (ch === '\\') { i++; continue; }
+        if (ch === inString) inString = null;
+        continue;
+      }
+      if (ch === '"' || ch === "'") inString = ch;
+    }
+    if (inString) return `Unclosed ${inString === '"' ? 'double' : 'single'} quote`;
+
+    return null;
+  }
+
+  // repaints the mcf-error-gutter for one editor based on the current file content.
+  // called once right after a .mcfunction tab opens, then debounced on every change.
+  function updateMcfErrorGutter(cm) {
+    if (!mcfunctionEditors.has(cm)) return; // editor's tab may have been closed already
+    cm.clearGutter('mcf-error-gutter');
+    const lineCount = cm.lineCount();
+    for (let i = 0; i < lineCount; i++) {
+      const issue = checkMcfunctionLine(cm.getLine(i));
+      if (issue) {
+        const marker = document.createElement('div');
+        marker.className = 'mcf-gutter-marker';
+        marker.title = issue;
+        marker.textContent = '●';
+        cm.setGutterMarker(i, 'mcf-error-gutter', marker);
+      }
+    }
+  }
 
   // picks a syntax mode based on the file's extension, defaults to plain js-ish highlighting
   function modeForFilename(name) {
@@ -2038,6 +2122,208 @@
     if (tab) tab.classList.toggle('dirty', dirty);
     const dot = document.querySelector(`.code-panel[data-panel="${id}"] .save-state-dot`);
     if (dot) dot.classList.toggle('unsaved', dirty);
+  }
+
+  // ================= find & replace =================
+  // per-tab state, keyed by tab id, so switching tabs never mixes up one panel's
+  // search with another's: { marks: [CodeMirror TextMarker], matches: [{from,to}], currentIndex }
+  const findReplaceState = {};
+
+  function getFrEls(id) {
+    const panel = document.querySelector(`.code-panel[data-panel="${id}"]`);
+    if (!panel) return null;
+    return {
+      panel,
+      bar: panel.querySelector('.find-replace-bar'),
+      findInput: panel.querySelector('.fr-find-input'),
+      replaceInput: panel.querySelector('.fr-replace-input'),
+      replaceRow: panel.querySelector('.fr-replace-row'),
+      count: panel.querySelector('.fr-count')
+    };
+  }
+
+  function openFindReplace(id, showReplace) {
+    const entry = editors[id];
+    const els = getFrEls(id);
+    if (!entry || !els) return;
+
+    els.bar.classList.add('show');
+    if (showReplace) els.replaceRow.classList.remove('hidden');
+
+    // pre-fill the find box with the current selection, like most editors do
+    const sel = entry.cm.getSelection();
+    if (sel && !sel.includes('\n')) els.findInput.value = sel;
+
+    els.findInput.focus();
+    els.findInput.select();
+
+    runSearch(id);
+  }
+
+  function closeFindReplace(id) {
+    const entry = editors[id];
+    const els = getFrEls(id);
+    if (!entry || !els) return;
+    els.bar.classList.remove('show');
+    els.replaceRow.classList.add('hidden');
+    clearMatches(id);
+    entry.cm.focus();
+  }
+
+  function clearMatches(id) {
+    const state = findReplaceState[id];
+    if (!state) return;
+    state.marks.forEach(m => m.clear());
+    state.marks = [];
+    state.matches = [];
+    state.currentIndex = -1;
+  }
+
+  function runSearch(id) {
+    const entry = editors[id];
+    const els = getFrEls(id);
+    if (!entry || !els) return;
+
+    clearMatches(id);
+    const query = els.findInput.value;
+    const state = findReplaceState[id] || (findReplaceState[id] = { marks: [], matches: [], currentIndex: -1 });
+
+    if (!query) {
+      els.count.textContent = '0/0';
+      els.count.classList.remove('no-matches');
+      return;
+    }
+
+    const cm = entry.cm;
+    const cursor = cm.getSearchCursor(query, { line: 0, ch: 0 }, { caseFold: true });
+    while (cursor.findNext()) {
+      const from = cursor.from(), to = cursor.to();
+      state.marks.push(cm.markText(from, to, { className: 'cm-fr-match' }));
+      state.matches.push({ from, to });
+    }
+
+    if (!state.matches.length) {
+      els.count.textContent = '0/0';
+      els.count.classList.add('no-matches');
+      state.currentIndex = -1;
+      return;
+    }
+    els.count.classList.remove('no-matches');
+
+    // land on the match closest to (or after) the cursor, not always the first in the doc
+    const cursorPos = cm.getCursor();
+    let startIndex = state.matches.findIndex(m =>
+      m.from.line > cursorPos.line || (m.from.line === cursorPos.line && m.from.ch >= cursorPos.ch)
+    );
+    if (startIndex === -1) startIndex = 0;
+
+    goToMatch(id, startIndex);
+  }
+
+  function goToMatch(id, index) {
+    const entry = editors[id];
+    const els = getFrEls(id);
+    const state = findReplaceState[id];
+    if (!entry || !els || !state || !state.matches.length) return;
+
+    // un-highlight the previous "current" match back to a normal match
+    if (state.currentIndex >= 0 && state.marks[state.currentIndex]) {
+      const old = state.marks[state.currentIndex];
+      const pos = old.find();
+      old.clear();
+      if (pos) state.marks[state.currentIndex] = entry.cm.markText(pos.from, pos.to, { className: 'cm-fr-match' });
+    }
+
+    const len = state.matches.length;
+    state.currentIndex = ((index % len) + len) % len;
+
+    const mark = state.marks[state.currentIndex];
+    const pos = mark.find();
+    if (!pos) return;
+    mark.clear();
+    state.marks[state.currentIndex] = entry.cm.markText(pos.from, pos.to, { className: 'cm-fr-match cm-fr-match-current' });
+
+    entry.cm.scrollIntoView(pos, 60);
+    entry.cm.setSelection(pos.from, pos.to);
+    els.count.textContent = `${state.currentIndex + 1}/${len}`;
+  }
+
+  function findNext(id) {
+    const state = findReplaceState[id];
+    if (!state || !state.matches.length) return;
+    goToMatch(id, state.currentIndex + 1);
+  }
+  function findPrev(id) {
+    const state = findReplaceState[id];
+    if (!state || !state.matches.length) return;
+    goToMatch(id, state.currentIndex - 1);
+  }
+
+  function replaceOne(id) {
+    const entry = editors[id];
+    const els = getFrEls(id);
+    const state = findReplaceState[id];
+    if (!entry || !els || !state || !state.matches.length || state.currentIndex < 0) return;
+
+    const mark = state.marks[state.currentIndex];
+    const pos = mark.find();
+    if (!pos) return;
+
+    entry.cm.replaceRange(els.replaceInput.value, pos.from, pos.to);
+    runSearch(id); // positions shift after a replace, so re-scanning is the simplest way to stay correct
+  }
+
+  function replaceAll(id) {
+    const entry = editors[id];
+    const els = getFrEls(id);
+    const state = findReplaceState[id];
+    if (!entry || !els || !state || !state.matches.length) return;
+
+    const replacement = els.replaceInput.value;
+    entry.cm.operation(() => {
+      // replace back-to-front so earlier match positions stay valid as we go
+      for (let i = state.matches.length - 1; i >= 0; i--) {
+        const m = state.matches[i];
+        entry.cm.replaceRange(replacement, m.from, m.to);
+      }
+    });
+    runSearch(id);
+  }
+
+  // wires up the buttons/inputs inside one tab's find-replace-bar (built fresh per tab in openTab)
+  function wireFindReplaceBar(id, findBar) {
+    const findInput = findBar.querySelector('.fr-find-input');
+    const replaceInput = findBar.querySelector('.fr-replace-input');
+    const replaceRow = findBar.querySelector('.fr-replace-row');
+
+    findInput.addEventListener('input', () => runSearch(id));
+    findInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (e.shiftKey) findPrev(id); else findNext(id);
+      } else if (e.key === 'Escape') {
+        closeFindReplace(id);
+      }
+    });
+
+    replaceInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        replaceOne(id);
+      } else if (e.key === 'Escape') {
+        closeFindReplace(id);
+      }
+    });
+
+    findBar.querySelector('.fr-prev').addEventListener('click', () => findPrev(id));
+    findBar.querySelector('.fr-next').addEventListener('click', () => findNext(id));
+    findBar.querySelector('.fr-toggle-replace').addEventListener('click', () => {
+      replaceRow.classList.toggle('hidden');
+      if (!replaceRow.classList.contains('hidden')) replaceInput.focus();
+    });
+    findBar.querySelector('.fr-close').addEventListener('click', () => closeFindReplace(id));
+    findBar.querySelector('.fr-replace-one').addEventListener('click', () => replaceOne(id));
+    findBar.querySelector('.fr-replace-all').addEventListener('click', () => replaceAll(id));
   }
 
   // ================= tabs: opening =================
@@ -2088,6 +2374,7 @@
         </div>
       `;
       panel.appendChild(findBar);
+      wireFindReplaceBar(id, findBar);
 
       const editorWrap = document.createElement('div');
       editorWrap.className = 'code-editor';
@@ -2208,9 +2495,14 @@
   function attachRenameEvent(labelEl, id) {
     labelEl.addEventListener('dblclick', (e) => {
       e.stopPropagation();
+      e.preventDefault();
       labelEl.contentEditable = 'true';
       labelEl.focus();
-      document.execCommand('selectAll', false, null);
+      const range = document.createRange();
+      range.selectNodeContents(labelEl);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
     });
 
     let originalName = labelEl.textContent;
@@ -2289,7 +2581,12 @@
 
       tab.remove();
       if (panel) panel.remove();
+      if (entry) {
+        mcfunctionEditors.delete(entry.cm);
+        clearTimeout(entry.cm._mcfGutterTimer);
+      }
       delete editors[id];
+      delete findReplaceState[id];
       document.querySelector(`.file-item[data-file="${id}"]`)?.classList.remove('active');
 
       // if the closed tab was active, activate the first remaining tab
