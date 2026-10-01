@@ -33,6 +33,8 @@
   <!-- Bedrock Wiki panel: renders raw markdown from GitHub, then sanitizes the resulting HTML before it's ever inserted into the page -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+  <script src="https://mcbcode.com/backend/grammar.js"></script>
+  <script src="https://mcbcode.com/backend/highlight.js"></script>
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300..700&display=swap');
 
@@ -622,6 +624,17 @@
       text-align: center;
       cursor: help;
     }
+
+  .code-editor .hl-command { color: var(--syn-keyword); }
+    .code-editor .hl-selector { color: var(--syn-atom); }
+    .code-editor .hl-word { color: var(--syn-def); }
+    .code-editor .hl-item { color: var(--syn-string); }
+    .code-editor .hl-number { color: var(--syn-number); }
+    .code-editor .hl-comment { color: var(--syn-comment); font-style: italic; }
+    .code-editor .hl-colorcode { color: var(--syn-property); }
+    .code-editor .hl-error { color: #ff6b6b; text-decoration: underline wavy #ff4d4d; }
+
+  
     .code-editor .CodeMirror-lint-tooltip {
       background: var(--bg-4);
       border: 1px solid var(--border-strong);
@@ -2341,22 +2354,98 @@
     return null;
   }
 
-  // repaints the mcf-error-gutter for one editor based on the current file content.
-  // called once right after a .mcfunction tab opens, then debounced on every change.
-  function updateMcfErrorGutter(cm) {
-    if (!mcfunctionEditors.has(cm)) return; // editor's tab may have been closed already
+  // ===== mcfunction highlighting =====
+  // uses applyHighlighting() from highlight.js (which uses grammar.js) to color each token
+
+  // a tiny do-nothing mode so codemirror doesnt complain about an unknown "mcfunction" mode
+  CodeMirror.defineMode('mcfunction', function () {
+    return { token: function (stream) { stream.skipToEnd(); return null; } };
+  });
+
+  // highlight.js calls window.updateErrorDots(listOfLineNumbers) after it highlights.
+  // we remember which editor we are highlighting so the dots go in the right tab.
+  let mcfTargetEditor = null;
+
+  window.updateErrorDots = function (errorLines) {
+    const cm = mcfTargetEditor;
+    if (!cm) return;
     cm.clearGutter('mcf-error-gutter');
-    const lineCount = cm.lineCount();
-    for (let i = 0; i < lineCount; i++) {
-      const issue = checkMcfunctionLine(cm.getLine(i));
-      if (issue) {
-        const marker = document.createElement('div');
-        marker.className = 'mcf-gutter-marker';
-        marker.title = issue;
-        marker.textContent = '●';
-        cm.setGutterMarker(i, 'mcf-error-gutter', marker);
-      }
+
+    // lines grammar.js flagged (1-based, so subtract 1) + lines with unbalanced brackets/quotes
+    const badLines = new Set(errorLines.map(n => n - 1));
+    for (let i = 0; i < cm.lineCount(); i++) {
+      if (checkMcfunctionLine(cm.getLine(i))) badLines.add(i);
     }
+
+    badLines.forEach(i => {
+      const marker = document.createElement('div');
+      marker.className = 'mcf-gutter-marker';
+      marker.title = checkMcfunctionLine(cm.getLine(i) || '') || "something on this line doesn't match the command grammar";
+      marker.textContent = '●';
+      cm.setGutterMarker(i, 'mcf-error-gutter', marker);
+    });
+  };
+
+  function unescapeHtml(s) {
+    return s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  }
+
+  // called when a .mcfunction tab opens, then again (debounced) on every edit
+  async function updateMcfErrorGutter(cm) {
+    if (!mcfunctionEditors.has(cm)) return;           // tab was closed
+    if (typeof applyHighlighting !== 'function') return; // highlight.js didnt load
+
+    const text = cm.getValue();
+    mcfTargetEditor = cm;
+    let html;
+    try {
+      html = await applyHighlighting(text);
+    } catch (e) {
+      console.error('mcfunction highlight failed:', e);
+      mcfTargetEditor = null;
+      return;
+    }
+    mcfTargetEditor = null;
+
+    // if the user kept typing (or closed the tab) while we worked, skip this result
+    if (!mcfunctionEditors.has(cm) || cm.getValue() !== text) return;
+
+    const htmlLines = html.split('\n');
+    const spanRe = /<span class="([^"]*)"[^>]*>([\s\S]*?)<\/span>/g;
+
+    cm.operation(() => {
+      // remove the colors from the last pass
+      (cm._mcfMarks || []).forEach(m => m.clear());
+      const marks = [];
+
+      for (let line = 0; line < htmlLines.length; line++) {
+        let ch = 0;
+        let lastEnd = 0;
+        spanRe.lastIndex = 0;
+        let m;
+        while ((m = spanRe.exec(htmlLines[line])) !== null) {
+          // text between spans is plain whitespace, just move past it
+          ch += unescapeHtml(htmlLines[line].slice(lastEnd, m.index)).length;
+          const len = unescapeHtml(m[2]).length;
+          const cls = m[1].split(' ')[0];
+          if (len > 0) {
+            marks.push(cm.markText({ line, ch }, { line, ch: ch + len }, { className: cls }));
+          }
+          ch += len;
+          lastEnd = spanRe.lastIndex;
+        }
+      }
+      cm._mcfMarks = marks;
+    });
+  }
+
+  // grammar.js calls this after it finishes downloading a command's grammar file,
+  // so everything gets re-colored with the new info. debounced so it doesnt spam.
+  function renderHighlight() {
+    clearTimeout(window._mcfRehighlightTimer);
+    window._mcfRehighlightTimer = setTimeout(() => {
+      mcfunctionEditors.forEach(cm => updateMcfErrorGutter(cm));
+    }, 100);
   }
 
   // picks a syntax mode based on the file's extension, defaults to plain js-ish highlighting
