@@ -145,16 +145,16 @@
   }
 
   async function openCloudFile(file) {
-    if (!file.save_id) {
-      if (mediaKindForFilename(file.name)) {
-        const tabId = await openCloudMediaFile(file, cloudNav ? cloudNav.code : null);
-        if (tabId) {
-          cloudfileOverlay.classList.remove('show');
-          renderSidebarTree();
-          setActiveTreeFileByTabId(tabId);
-        }
-        return;
+    if (mediaKindForFilename(file.name)) {
+      const tabId = await openCloudMediaFile(file, cloudNav ? cloudNav.code : null);
+      if (tabId) {
+        cloudfileOverlay.classList.remove('show');
+        renderSidebarTree();
+        setActiveTreeFileByTabId(tabId);
       }
+      return;
+    }
+    if (!file.save_id) {
       alert('file type unsupported');
       return;
     }
@@ -257,12 +257,12 @@
       await openLocalArchiveFile(file);
       return;
     }
+    if (mediaKindForFilename(file.name)) {
+      const tabId = await openCloudMediaFile(file, currentProject ? currentProject.code : null);
+      if (tabId) setActiveTreeFileByTabId(tabId);
+      return;
+    }
     if (!file.save_id) {
-      if (mediaKindForFilename(file.name)) {
-        const tabId = await openCloudMediaFile(file, currentProject ? currentProject.code : null);
-        if (tabId) setActiveTreeFileByTabId(tabId);
-        return;
-      }
       alert('file type unsupported');
       return;
     }
