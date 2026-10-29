@@ -22,6 +22,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/searchcursor.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.js"></script>
   <!-- sublime keymap = where multi-cursor shortcuts live: Ctrl/Cmd-D select next occurrence,
        Ctrl/Cmd-Alt-Up/Down add cursor above/below, Alt-Click add a cursor (mouse, built into CM core) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/keymap/sublime.min.js"></script>
@@ -804,6 +806,20 @@
     .code-editor .hl-comment { color: var(--syn-comment); font-style: italic; }
     .code-editor .hl-colorcode { color: var(--syn-property); }
     .code-editor .hl-error { color: #ff6b6b; text-decoration: underline wavy #ff4d4d; }
+
+    .CodeMirror-hints {
+      z-index: 2000;
+      background: var(--bg-4);
+      border: 1px solid var(--border-strong);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+    .CodeMirror-hint { color: var(--text-body); }
+    li.CodeMirror-hint-active {
+      background: var(--bg-6);
+      color: var(--accent);
+    }
 
   
     .code-editor .CodeMirror-lint-tooltip {
