@@ -289,9 +289,77 @@ function renderSoundViewer(viewer, filename, blob, id) {
     return;
   }
   blob.arrayBuffer().then(buffer => {
-    const bank = parseFsb5(buffer);
+    const bank = parseFsb(buffer);
     renderFsbBank(viewer, bank, id);
   }).catch(error => showMediaError(viewer, error.message || 'This FSB sound bank could not be read.'));
+}
+
+function parseFsb(buffer) {
+  const bytes = new Uint8Array(buffer);
+  const magic = String.fromCharCode(...bytes.slice(0, 4));
+  if (magic === 'FSB5') return parseFsb5(buffer);
+  if (magic === 'FSB3' || magic === 'FSB4') return parseLegacyFsb(buffer, magic);
+  throw new Error(`This file does not have a recognized FSB header (${magic || 'unknown data'}).`);
+}
+
+function parseLegacyFsb(buffer, magic) {
+  const bytes = new Uint8Array(buffer);
+  const view = new DataView(buffer);
+  const headerSize = magic === 'FSB4' ? 48 : 24;
+  if (bytes.byteLength < headerSize) throw new Error(`This ${magic} file is too short to contain a valid header.`);
+  const sampleCount = view.getUint32(4, true);
+  const sampleHeadersSize = view.getUint32(8, true);
+  const dataSize = view.getUint32(12, true);
+  const bankFlags = view.getUint32(20, true);
+  const sampleHeadersStart = headerSize;
+  const dataStart = sampleHeadersStart + sampleHeadersSize;
+  if (sampleCount > 100000 || dataStart > bytes.length || dataStart + dataSize > bytes.length) {
+    throw new Error(`${magic} has inconsistent or excessive section sizes.`);
+  }
+  if (bankFlags & 0x04) throw new Error('This FSB bank is encrypted and cannot be previewed.');
+  if (bankFlags & 0x02) throw new Error(`This ${magic} bank uses compact sample headers that are not supported yet.`);
+
+  const samples = [];
+  let headerCursor = sampleHeadersStart;
+  let dataCursor = dataStart;
+  const headersEnd = dataStart;
+  for (let index = 0; index < sampleCount; index++) {
+    if (headerCursor + 80 > headersEnd) throw new Error(`${magic} sample header table is incomplete.`);
+    const entrySize = view.getUint16(headerCursor, true);
+    if (entrySize < 80 || headerCursor + entrySize > headersEnd) {
+      throw new Error(`${magic} contains an invalid sample-header size.`);
+    }
+    const nameBytes = bytes.subarray(headerCursor + 2, headerCursor + 32);
+    const zeroAt = nameBytes.indexOf(0);
+    const name = new TextDecoder('utf-8').decode(nameBytes.subarray(0, zeroAt < 0 ? nameBytes.length : zeroAt)).trim();
+    const sampleFrames = view.getUint32(headerCursor + 32, true);
+    const compressedSize = view.getUint32(headerCursor + 36, true);
+    const mode = view.getUint32(headerCursor + 48, true);
+    const frequencyValue = view.getInt32(headerCursor + 52, true);
+    const channelCount = view.getUint16(headerCursor + 60, true);
+    const channels = channelCount || (mode & 0x40 ? 2 : 1);
+    let format = 0;
+    if (mode & 0x08000000) format = 15;
+    else if (mode & (0x10000000 | 0x00040000 | 0x00000200)) format = 11;
+    else if (mode & 0x00200000) format = 4;
+    else if (mode & 0x10) format = 2;
+    else if (mode & 0x08) format = 1;
+    if (dataCursor + compressedSize > dataStart + dataSize) {
+      throw new Error(`${magic} sample data exceeds its declared data section.`);
+    }
+    samples.push({
+      index,
+      name: name || `${String(index + 1).padStart(2, '0')} sample`,
+      channels,
+      frequency: frequencyValue > 0 ? frequencyValue : 0,
+      sampleFrames,
+      data: bytes.slice(dataCursor, dataCursor + compressedSize),
+      format
+    });
+    headerCursor += entrySize;
+    dataCursor += compressedSize;
+  }
+  return { version: magic, sampleCount, soundFormat: 0, formatLabel: magic, samples };
 }
 
 function parseFsb5(buffer) {
@@ -379,7 +447,8 @@ function parseFsb5(buffer) {
 function renderFsbBank(viewer, bank, id) {
   const meta = document.createElement('div');
   meta.className = 'media-bank-meta';
-  meta.textContent = `FSB5 · ${bank.sampleCount} sample${bank.sampleCount === 1 ? '' : 's'} · ${fsbFormatName(bank.soundFormat)}`;
+  const codecSummary = bank.formatLabel || fsbFormatName(bank.soundFormat);
+  meta.textContent = `${codecSummary} · ${bank.sampleCount} sample${bank.sampleCount === 1 ? '' : 's'}${bank.formatLabel ? '' : ` · ${fsbFormatName(bank.soundFormat)}`}`;
   viewer.appendChild(meta);
   const sampleList = document.createElement('div');
   sampleList.className = 'media-sample-list';
