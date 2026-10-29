@@ -1,0 +1,727 @@
+// ================= CodeMirror + cloud-file tracking =================
+  // one entry per open tab id: { cm, saveId, dirty, fileId, projectCode }
+  // saveId/fileId/projectCode are only set for files opened from the cloud browser —
+  // that's what ties Ctrl+S and renaming back to the right database row.
+  const editors = {};
+
+  // tracks which CodeMirror instances are currently editing a .mcfunction file, so the
+  // gutter-refresh logic below only ever runs against real mcfunction editors
+  const mcfunctionEditors = new Set();
+
+  // lightweight .mcfunction linter — not a full command parser (that needs real per-command
+  // grammar), just catches the syntax mistakes that silently break a function in-game:
+  // unbalanced [] (selectors), {} (JSON text components in tellraw/title/etc), () and
+  // unterminated quotes. Returns a short message for the gutter tooltip, or null if the
+  // line looks fine.
+  function checkMcfunctionLine(text) {
+    const trimmed = text.trim();
+    if (!trimmed || trimmed.startsWith('#')) return null; // blank line / comment — nothing to check
+
+    const pairs = [['[', ']', 'selector argument'], ['{', '}', 'JSON block'], ['(', ')', 'parenthesis']];
+    for (const [open, close, label] of pairs) {
+      let depth = 0;
+      let inString = null;
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if (inString) {
+          if (ch === '\\') { i++; continue; } // skip escaped char inside the string
+          if (ch === inString) inString = null;
+          continue;
+        }
+        if (ch === '"' || ch === "'") { inString = ch; continue; }
+        if (ch === open) depth++;
+        else if (ch === close) depth--;
+        if (depth < 0) return `Unmatched "${close}" — extra closing ${label}`;
+      }
+      if (depth > 0) return `Unclosed "${open}" — ${depth} ${label}${depth > 1 ? 's' : ''} not closed`;
+    }
+
+    // an unterminated quote (missing closing " or ') usually breaks the whole command
+    let inString = null;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (inString) {
+        if (ch === '\\') { i++; continue; }
+        if (ch === inString) inString = null;
+        continue;
+      }
+      if (ch === '"' || ch === "'") inString = ch;
+    }
+    if (inString) return `Unclosed ${inString === '"' ? 'double' : 'single'} quote`;
+
+    return null;
+  }
+
+  // ===== mcfunction highlighting =====
+  // uses applyHighlighting() from highlight.js (which uses grammar.js) to color each token
+
+  // a tiny do-nothing mode so codemirror doesnt complain about an unknown "mcfunction" mode
+  CodeMirror.defineMode('mcfunction', function () {
+    return { token: function (stream) { stream.skipToEnd(); return null; } };
+  });
+
+  // highlight.js calls window.updateErrorDots(listOfLineNumbers) after it highlights.
+  // we remember which editor we are highlighting so the dots go in the right tab.
+  let mcfTargetEditor = null;
+
+  window.updateErrorDots = function (errorLines) {
+    const cm = mcfTargetEditor;
+    if (!cm) return;
+    cm.clearGutter('mcf-error-gutter');
+
+    // lines grammar.js flagged (1-based, so subtract 1) + lines with unbalanced brackets/quotes
+    const badLines = new Set(errorLines.map(n => n - 1));
+    for (let i = 0; i < cm.lineCount(); i++) {
+      if (checkMcfunctionLine(cm.getLine(i))) badLines.add(i);
+    }
+
+    badLines.forEach(i => {
+      const marker = document.createElement('div');
+      marker.className = 'mcf-gutter-marker';
+      marker.title = checkMcfunctionLine(cm.getLine(i) || '') || "something on this line doesn't match the command grammar";
+      marker.textContent = '●';
+      cm.setGutterMarker(i, 'mcf-error-gutter', marker);
+    });
+  };
+
+  function unescapeHtml(s) {
+    return s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  }
+
+  // called when a .mcfunction tab opens, then again (debounced) on every edit
+  async function updateMcfErrorGutter(cm) {
+    if (!mcfunctionEditors.has(cm)) return;           // tab was closed
+    if (typeof applyHighlighting !== 'function') return; // highlight.js didnt load
+
+    const text = cm.getValue();
+    mcfTargetEditor = cm;
+    let html;
+    try {
+      html = await applyHighlighting(text);
+    } catch (e) {
+      console.error('mcfunction highlight failed:', e);
+      mcfTargetEditor = null;
+      return;
+    }
+    mcfTargetEditor = null;
+
+    // if the user kept typing (or closed the tab) while we worked, skip this result
+    if (!mcfunctionEditors.has(cm) || cm.getValue() !== text) return;
+
+    const htmlLines = html.split('\n');
+    const spanRe = /<span class="([^"]*)"[^>]*>([\s\S]*?)<\/span>/g;
+
+    cm.operation(() => {
+      // remove the colors from the last pass
+      (cm._mcfMarks || []).forEach(m => m.clear());
+      const marks = [];
+
+      for (let line = 0; line < htmlLines.length; line++) {
+        let ch = 0;
+        let lastEnd = 0;
+        spanRe.lastIndex = 0;
+        let m;
+        while ((m = spanRe.exec(htmlLines[line])) !== null) {
+          // text between spans is plain whitespace, just move past it
+          ch += unescapeHtml(htmlLines[line].slice(lastEnd, m.index)).length;
+          const len = unescapeHtml(m[2]).length;
+          const cls = m[1].split(' ')[0];
+          if (len > 0) {
+            marks.push(cm.markText({ line, ch }, { line, ch: ch + len }, { className: cls }));
+          }
+          ch += len;
+          lastEnd = spanRe.lastIndex;
+        }
+      }
+      cm._mcfMarks = marks;
+    });
+  }
+
+  // grammar.js calls this after it finishes downloading a command's grammar file,
+  // so everything gets re-colored with the new info. debounced so it doesnt spam.
+  function renderHighlight() {
+    clearTimeout(window._mcfRehighlightTimer);
+    window._mcfRehighlightTimer = setTimeout(() => {
+      mcfunctionEditors.forEach(cm => updateMcfErrorGutter(cm));
+    }, 100);
+  }
+
+  // picks a syntax mode based on the file's extension, defaults to plain js-ish highlighting
+  function modeForFilename(name) {
+    const ext = (name.split('.').pop() || '').toLowerCase();
+    if (ext === 'md') return 'markdown';
+    if (ext === 'json') return { name: 'javascript', json: true };
+    if (ext === 'mcfunction') return 'mcfunction'; // custom mode, defined further down
+    if (ext === 'sh' || ext === 'txt') return 'shell';
+    return 'javascript';
+  }
+
+  // js/json get real error-squiggle linting (via JSHint); other modes don't have
+  // a meaningful linter wired up here, so leave them without the gutter
+  function lintableFilename(name) {
+    const ext = (name.split('.').pop() || '').toLowerCase();
+    return ext === 'js' || ext === 'json' || ext === '';
+  }
+
+  function markDirty(id, dirty) {
+    const entry = editors[id];
+    if (!entry) return;
+    entry.dirty = dirty;
+    if (dirty && entry.localArchiveFile) entry.localArchiveFile.workspace.hasChanges = true;
+    const tab = document.querySelector(`.tab[data-tab="${id}"]`);
+    if (tab) tab.classList.toggle('dirty', dirty);
+    const dot = document.querySelector(`.code-panel[data-panel="${id}"] .save-state-dot`);
+    if (dot) dot.classList.toggle('unsaved', dirty);
+  }
+
+  // ================= find & replace =================
+  // per-tab state, keyed by tab id, so switching tabs never mixes up one panel's
+  // search with another's: { marks: [CodeMirror TextMarker], matches: [{from,to}], currentIndex }
+  const findReplaceState = {};
+
+  function getFrEls(id) {
+    const panel = document.querySelector(`.code-panel[data-panel="${id}"]`);
+    if (!panel) return null;
+    return {
+      panel,
+      bar: panel.querySelector('.find-replace-bar'),
+      findInput: panel.querySelector('.fr-find-input'),
+      replaceInput: panel.querySelector('.fr-replace-input'),
+      replaceRow: panel.querySelector('.fr-replace-row'),
+      count: panel.querySelector('.fr-count')
+    };
+  }
+
+  function openFindReplace(id, showReplace) {
+    const entry = editors[id];
+    const els = getFrEls(id);
+    if (!entry || !els) return;
+
+    els.bar.classList.add('show');
+    if (showReplace) els.replaceRow.classList.remove('hidden');
+
+    // pre-fill the find box with the current selection, like most editors do
+    const sel = entry.cm.getSelection();
+    if (sel && !sel.includes('\n')) els.findInput.value = sel;
+
+    els.findInput.focus();
+    els.findInput.select();
+
+    runSearch(id);
+  }
+
+  function closeFindReplace(id) {
+    const entry = editors[id];
+    const els = getFrEls(id);
+    if (!entry || !els) return;
+    els.bar.classList.remove('show');
+    els.replaceRow.classList.add('hidden');
+    clearMatches(id);
+    entry.cm.focus();
+  }
+
+  function clearMatches(id) {
+    const state = findReplaceState[id];
+    if (!state) return;
+    state.marks.forEach(m => m.clear());
+    state.marks = [];
+    state.matches = [];
+    state.currentIndex = -1;
+  }
+
+  function runSearch(id) {
+    const entry = editors[id];
+    const els = getFrEls(id);
+    if (!entry || !els) return;
+
+    clearMatches(id);
+    const query = els.findInput.value;
+    const state = findReplaceState[id] || (findReplaceState[id] = { marks: [], matches: [], currentIndex: -1 });
+
+    if (!query) {
+      els.count.textContent = '0/0';
+      els.count.classList.remove('no-matches');
+      return;
+    }
+
+    const cm = entry.cm;
+    const cursor = cm.getSearchCursor(query, { line: 0, ch: 0 }, { caseFold: true });
+    while (cursor.findNext()) {
+      const from = cursor.from(), to = cursor.to();
+      state.marks.push(cm.markText(from, to, { className: 'cm-fr-match' }));
+      state.matches.push({ from, to });
+    }
+
+    if (!state.matches.length) {
+      els.count.textContent = '0/0';
+      els.count.classList.add('no-matches');
+      state.currentIndex = -1;
+      return;
+    }
+    els.count.classList.remove('no-matches');
+
+    // land on the match closest to (or after) the cursor, not always the first in the doc
+    const cursorPos = cm.getCursor();
+    let startIndex = state.matches.findIndex(m =>
+      m.from.line > cursorPos.line || (m.from.line === cursorPos.line && m.from.ch >= cursorPos.ch)
+    );
+    if (startIndex === -1) startIndex = 0;
+
+    goToMatch(id, startIndex);
+  }
+
+  function goToMatch(id, index) {
+    const entry = editors[id];
+    const els = getFrEls(id);
+    const state = findReplaceState[id];
+    if (!entry || !els || !state || !state.matches.length) return;
+
+    // un-highlight the previous "current" match back to a normal match
+    if (state.currentIndex >= 0 && state.marks[state.currentIndex]) {
+      const old = state.marks[state.currentIndex];
+      const pos = old.find();
+      old.clear();
+      if (pos) state.marks[state.currentIndex] = entry.cm.markText(pos.from, pos.to, { className: 'cm-fr-match' });
+    }
+
+    const len = state.matches.length;
+    state.currentIndex = ((index % len) + len) % len;
+
+    const mark = state.marks[state.currentIndex];
+    const pos = mark.find();
+    if (!pos) return;
+    mark.clear();
+    state.marks[state.currentIndex] = entry.cm.markText(pos.from, pos.to, { className: 'cm-fr-match cm-fr-match-current' });
+
+    entry.cm.scrollIntoView(pos, 60);
+    entry.cm.setSelection(pos.from, pos.to);
+    els.count.textContent = `${state.currentIndex + 1}/${len}`;
+  }
+
+  function findNext(id) {
+    const state = findReplaceState[id];
+    if (!state || !state.matches.length) return;
+    goToMatch(id, state.currentIndex + 1);
+  }
+  function findPrev(id) {
+    const state = findReplaceState[id];
+    if (!state || !state.matches.length) return;
+    goToMatch(id, state.currentIndex - 1);
+  }
+
+  function replaceOne(id) {
+    const entry = editors[id];
+    const els = getFrEls(id);
+    const state = findReplaceState[id];
+    if (!entry || !els || !state || !state.matches.length || state.currentIndex < 0) return;
+
+    const mark = state.marks[state.currentIndex];
+    const pos = mark.find();
+    if (!pos) return;
+
+    entry.cm.replaceRange(els.replaceInput.value, pos.from, pos.to);
+    runSearch(id); // positions shift after a replace, so re-scanning is the simplest way to stay correct
+  }
+
+  function replaceAll(id) {
+    const entry = editors[id];
+    const els = getFrEls(id);
+    const state = findReplaceState[id];
+    if (!entry || !els || !state || !state.matches.length) return;
+
+    const replacement = els.replaceInput.value;
+    entry.cm.operation(() => {
+      // replace back-to-front so earlier match positions stay valid as we go
+      for (let i = state.matches.length - 1; i >= 0; i--) {
+        const m = state.matches[i];
+        entry.cm.replaceRange(replacement, m.from, m.to);
+      }
+    });
+    runSearch(id);
+  }
+
+  // wires up the buttons/inputs inside one tab's find-replace-bar (built fresh per tab in openTab)
+  function wireFindReplaceBar(id, findBar) {
+    const findInput = findBar.querySelector('.fr-find-input');
+    const replaceInput = findBar.querySelector('.fr-replace-input');
+    const replaceRow = findBar.querySelector('.fr-replace-row');
+
+    findInput.addEventListener('input', () => runSearch(id));
+    findInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (e.shiftKey) findPrev(id); else findNext(id);
+      } else if (e.key === 'Escape') {
+        closeFindReplace(id);
+      }
+    });
+
+    replaceInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        replaceOne(id);
+      } else if (e.key === 'Escape') {
+        closeFindReplace(id);
+      }
+    });
+
+    findBar.querySelector('.fr-prev').addEventListener('click', () => findPrev(id));
+    findBar.querySelector('.fr-next').addEventListener('click', () => findNext(id));
+    findBar.querySelector('.fr-toggle-replace').addEventListener('click', () => {
+      replaceRow.classList.toggle('hidden');
+      if (!replaceRow.classList.contains('hidden')) replaceInput.focus();
+    });
+    findBar.querySelector('.fr-close').addEventListener('click', () => closeFindReplace(id));
+    findBar.querySelector('.fr-replace-one').addEventListener('click', () => replaceOne(id));
+    findBar.querySelector('.fr-replace-all').addEventListener('click', () => replaceAll(id));
+  }
+
+  // ================= tabs: opening =================
+  // saveId/fileId/projectCode: pass these for cloud files so Ctrl+S syncs content
+  // and renaming syncs the filename back to the right project. leave them undefined
+  // for local/new/scratch files (Save just shows a "can't save" note; rename stays local-only).
+  function openTab(id, label, content, saveId, fileId, projectCode, localArchiveFile) {
+    let tab = document.querySelector(`.tab[data-tab="${id}"]`);
+
+    if (!tab) {
+      // build the tab
+      tab = document.createElement('div');
+      tab.className = 'tab';
+      tab.dataset.tab = id;
+      tab.innerHTML = '<span class="dirty-dot"></span><span class="tab-label"></span><span class="close-btn"></span>';
+      tab.querySelector('.tab-label').textContent = label;
+      tab.querySelector('.close-btn').textContent = '×';
+      tab.querySelector('.close-btn').dataset.close = id;
+      tabBar.appendChild(tab);
+
+      // build the matching code panel: optional cloud-status strip + CodeMirror
+      const panel = document.createElement('div');
+      panel.className = 'code-panel';
+      panel.dataset.panel = id;
+
+      const status = document.createElement('div');
+      status.className = 'code-status';
+      if (saveId || localArchiveFile) {
+        status.classList.add('show');
+        // green dot = saved, red dot = unsaved changes, toggled by markDirty()
+        const saveMessage = saveId ? 'synced to your mcbCode account' : 'saved in imported pack — export pack to download';
+        status.innerHTML = `<span class="save-state-dot"></span><span>${saveMessage}</span><button class="save-btn">Save</button>`;
+        status.querySelector('.save-btn').addEventListener('click', () => saveTab(id));
+      }
+      panel.appendChild(status);
+
+      const findBar = document.createElement('div');
+      findBar.className = 'find-replace-bar';
+      findBar.innerHTML = `
+        <div class="fr-row">
+          <input type="text" class="fr-find-input" placeholder="Find">
+          <span class="fr-count">0/0</span>
+          <button class="fr-prev" title="Previous match">˄</button>
+          <button class="fr-next" title="Next match">˅</button>
+          <button class="fr-toggle-replace" title="Toggle replace">⇄</button>
+          <button class="fr-close" title="Close">&times;</button>
+        </div>
+        <div class="fr-row fr-replace-row hidden">
+          <input type="text" class="fr-replace-input" placeholder="Replace">
+          <button class="fr-replace-one">Replace</button>
+          <button class="fr-replace-all">Replace All</button>
+        </div>
+      `;
+      panel.appendChild(findBar);
+      wireFindReplaceBar(id, findBar);
+
+      const editorWrap = document.createElement('div');
+      editorWrap.className = 'code-editor';
+      panel.appendChild(editorWrap);
+      codeArea.appendChild(panel);
+
+      const isLintable = lintableFilename(label);
+      const isMcfunction = modeForFilename(label) === 'mcfunction';
+      const gutters = isLintable
+        ? ['CodeMirror-linenumbers', 'CodeMirror-lint-markers']
+        : isMcfunction
+          ? ['CodeMirror-linenumbers', 'mcf-error-gutter']
+          : ['CodeMirror-linenumbers'];
+
+      const cm = CodeMirror(editorWrap, {
+        value: content,
+        mode: modeForFilename(label),
+        lineNumbers: true,
+        theme: 'default',
+        keyMap: 'sublime',        // unlocks multi-cursor shortcuts (see the Shortcuts menu)
+        matchBrackets: true,
+        styleActiveLine: true,
+        indentUnit: 2,
+        tabSize: 2,
+        gutters,
+        lint: isLintable ? { esversion: 11, asi: true, undef: false, unused: false } : false,
+        extraKeys: {
+          'Shift-Tab': 'indentLess',
+          'Ctrl-S': () => saveTab(id),
+          'Cmd-S': () => saveTab(id),
+          'Ctrl-F': () => openFindReplace(id, false),
+          'Cmd-F': () => openFindReplace(id, false),
+          'Ctrl-H': () => openFindReplace(id, true),
+          'Cmd-Alt-F': () => openFindReplace(id, true),
+          'Esc': () => closeFindReplace(id)
+        }
+      });
+
+      editors[id] = { cm, saveId: saveId || null, fileId: fileId || null, projectCode: projectCode || null, localArchiveFile: localArchiveFile || null, dirty: false };
+      cm.on('change', () => markDirty(id, true));
+
+      if (isMcfunction) {
+        mcfunctionEditors.add(cm);
+        setTimeout(() => updateMcfErrorGutter(cm), 0);
+        cm.on('changes', () => {
+          clearTimeout(cm._mcfGutterTimer);
+          cm._mcfGutterTimer = setTimeout(() => updateMcfErrorGutter(cm), 250);
+        });
+      }
+
+      attachTabEvents(tab);
+      attachCloseEvent(tab.querySelector('.close-btn'));
+      attachRenameEvent(tab.querySelector('.tab-label'), id);
+    }
+
+    activateTab(id);
+  }
+
+  // generates a unique tab id for files opened outside the sidebar (local files, new blank files, cloud files)
+  let dynamicTabCounter = 1;
+  function nextDynamicId() {
+    return `dyn${dynamicTabCounter++}`;
+  }
+
+  function attachTabEvents(tab) {
+    tab.addEventListener('click', (e) => {
+      if (e.target.classList.contains('close-btn')) return;
+      if (e.target.isContentEditable) return;
+      activateTab(tab.dataset.tab);
+    });
+  }
+
+  // ================= saving =================
+  // syncs a tab's current content to the matching `saves` row via POST /save.
+  // this is the same endpoint the main site uses, so anything saved here shows
+  // up back on mcbcode.com immediately.
+  async function saveTab(id) {
+    const entry = editors[id];
+    if (!entry) return;
+    const dot = document.querySelector(`.code-panel[data-panel="${id}"] .save-state-dot`);
+
+    if (entry.localArchiveFile) {
+      const localFile = entry.localArchiveFile;
+      localFile.zip.file(localFile.zipPath, entry.cm.getValue());
+      if (localFile.treeFile) localFile.treeFile.zipEntry = localFile.zip.file(localFile.zipPath);
+      markDirty(id, false);
+      return;
+    }
+    if (!entry.saveId) {
+      // local/new file — nothing on the server to sync to
+      alert("This isn't a cloud file, so there's nothing to sync it to yet — save/download it locally instead.");
+      return;
+    }
+    const tabLabelEl = document.querySelector(`.tab[data-tab="${id}"] .tab-label`);
+    const filename = tabLabelEl ? tabLabelEl.textContent : 'untitled';
+
+    try {
+      await api('/save', {
+        method: 'POST',
+        body: JSON.stringify({ save_id: entry.saveId, content: entry.cm.getValue(), filename })
+      });
+      markDirty(id, false);
+    } catch (e) {
+      if (dot) dot.title = 'save failed: ' + e.message;
+      alert("Couldn't save: " + e.message);
+    }
+  }
+
+  function saveActiveTab() {
+    const activeTab = document.querySelector('.tab.active');
+    if (activeTab) saveTab(activeTab.dataset.tab);
+  }
+
+  // warn before closing/refreshing the browser tab if anything is unsaved
+  window.addEventListener('beforeunload', (e) => {
+    const anyDirty = Object.values(editors).some(entry => entry.dirty)
+      || (typeof archiveWorkspaces !== 'undefined' && [...archiveWorkspaces].some(workspace => workspace.hasChanges));
+    if (anyDirty) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  // ================= tabs: renaming (double-click the label) =================
+  // for cloud files (opened from the file browser or the project tree), this also
+  // renames the real file server-side via POST /project/file, using the same
+  // file_id + project_code the file was opened with. local/scratch files just
+  // rename locally since there's nothing on the server to rename.
+  function attachRenameEvent(labelEl, id) {
+    labelEl.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      labelEl.contentEditable = 'true';
+      labelEl.focus();
+      const range = document.createRange();
+      range.selectNodeContents(labelEl);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    });
+
+    let originalName = labelEl.textContent;
+    labelEl.addEventListener('focus', () => { originalName = labelEl.textContent; });
+
+    async function finishRename() {
+      labelEl.contentEditable = 'false';
+      const newName = labelEl.textContent.trim() || 'untitled';
+      labelEl.textContent = newName;
+
+      if (newName === originalName) return;
+
+      // keep the sidebar demo file entry (if any) in sync with the new name
+      const fileItem = document.querySelector(`.file-item[data-file="${id}"]`);
+      if (fileItem) {
+        fileItem.textContent = newName;
+        fileItem.dataset.label = newName;
+      }
+
+      const entry = editors[id];
+      if (!entry || !entry.fileId || !entry.projectCode) return; // not a cloud file, local rename only
+
+      try {
+        await api('/project/file', {
+          method: 'POST',
+          body: JSON.stringify({
+            project_code: entry.projectCode,
+            file_id: entry.fileId,
+            name: newName,
+            type: 'file',
+            content: entry.cm.getValue()
+          })
+        });
+        // keep the in-memory project file lists in sync so the sidebar tree
+        // and cloud browser show the new name without needing a refetch
+        [currentProject, cloudNav].forEach(proj => {
+          if (!proj) return;
+          const f = proj.files.find(x => x.id === entry.fileId);
+          if (f) f.name = newName;
+        });
+        renderSidebarTree();
+      } catch (err) {
+        labelEl.textContent = originalName; // revert on failure
+        alert("Couldn't rename that file: " + err.message);
+      }
+    }
+
+    labelEl.addEventListener('blur', finishRename);
+    labelEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        labelEl.blur();
+      }
+      if (e.key === 'Escape') {
+        labelEl.textContent = originalName;
+        labelEl.blur();
+      }
+    });
+  }
+
+  // ================= tabs: closing =================
+  function attachCloseEvent(btn) {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.close;
+      const entry = editors[id];
+
+      if (entry && entry.dirty) {
+        const ok = confirm('This tab has unsaved changes. Close anyway?');
+        if (!ok) return;
+      }
+
+      const tab = document.querySelector(`.tab[data-tab="${id}"]`);
+      const panel = document.querySelector(`.code-panel[data-panel="${id}"]`);
+      const wasActive = tab.classList.contains('active');
+
+      tab.remove();
+      if (panel) panel.remove();
+      if (entry) {
+        mcfunctionEditors.delete(entry.cm);
+        clearTimeout(entry.cm._mcfGutterTimer);
+      }
+      delete editors[id];
+      delete findReplaceState[id];
+      document.querySelector(`.file-item[data-file="${id}"]`)?.classList.remove('active');
+
+      // if the closed tab was active, activate the first remaining tab
+      const nextTab = document.querySelector('.tab');
+      if (wasActive && nextTab) {
+        activateTab(nextTab.dataset.tab);
+      } else {
+        if (wasActive) setActiveTreeFileByTabId('');
+        updateWelcomeVisibility();
+      }
+    });
+  }
+
+  // ================= sidebar: clicking a file opens/activates its tab =================
+  document.querySelectorAll('.file-item').forEach(file => {
+    file.addEventListener('click', () => {
+      const id = file.dataset.file;
+      const label = file.dataset.label;
+      const content = file.dataset.content;
+      openTab(id, label, content);
+    });
+  });
+
+  updateWelcomeVisibility();
+
+  // ================= account popup =================
+  const accountIcon = document.getElementById('account-icon');
+  const accountPopup = document.getElementById('account-popup');
+
+  accountIcon.addEventListener('click', (e) => {
+    e.stopPropagation();
+    accountPopup.classList.toggle('show');
+  });
+  document.addEventListener('click', () => {
+    accountPopup.classList.remove('show');
+  });
+
+  // ================= activity bar icons =================
+  document.querySelectorAll('.activity-icon[data-action="placeholder"]').forEach(icon => {
+    icon.addEventListener('click', () => {
+      document.querySelectorAll('.activity-icon[data-action="placeholder"]').forEach(i => i.classList.remove('active'));
+      icon.classList.add('active');
+      showPlaceholder();
+    });
+  });
+
+  // ================= welcome panel buttons =================
+  const openfileOverlay = document.getElementById('openfile-overlay');
+  // "Open File" button -> shows the local / mcbCode / pack choice popup
+  document.getElementById('btn-open-file').addEventListener('click', () => {
+    openfileOverlay.classList.add('show');
+  });
+  document.getElementById('openfile-close').addEventListener('click', () => {
+    openfileOverlay.classList.remove('show');
+  });
+  // "Open mcbCode File" -> opens the real cloud file browser (needs login)
+  document.getElementById('btn-open-mcbcode').addEventListener('click', () => {
+    openfileOverlay.classList.remove('show');
+    openCloudBrowser();
+  });
+
+  // "Login" button on the welcome screen: if already logged in, just pop the account
+  // popup instead of redirecting somewhere pointless
+  document.getElementById('btn-login').addEventListener('click', () => {
+    if (currentUser) {
+      accountPopup.classList.add('show');
+    } else {
+      window.location.href = 'https://mcbcode.com/account?redirectto=https://studio.mcbcode.com';
+    }
+  });
+
+  // "New Blank File" -> opens an empty scratch tab to start typing in right away
+  document.getElementById('btn-new-file').addEventListener('click', () => {
+    const id = nextDynamicId();
+    openTab(id, 'untitled', '');
+  });

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'studio-mcbcode-v1';
+const CACHE_NAME = 'studio-mcbcode-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html'
