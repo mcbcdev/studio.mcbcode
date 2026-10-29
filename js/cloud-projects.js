@@ -146,8 +146,16 @@
 
   async function openCloudFile(file) {
     if (!file.save_id) {
-      // r2-backed binary asset (image, structure file, etc) — this editor is text-only
-      alert("That file isn't a text file (it's an image or binary asset), so it can't be opened in the code editor.");
+      if (mediaKindForFilename(file.name)) {
+        const tabId = await openCloudMediaFile(file, cloudNav ? cloudNav.code : null);
+        if (tabId) {
+          cloudfileOverlay.classList.remove('show');
+          renderSidebarTree();
+          setActiveTreeFileByTabId(tabId);
+        }
+        return;
+      }
+      alert('file type unsupported');
       return;
     }
     cloudfileList.innerHTML = '<div class="cloudfile-loading">opening file...</div>';
@@ -250,7 +258,12 @@
       return;
     }
     if (!file.save_id) {
-      alert("That file isn't a text file (it's an image or binary asset), so it can't be opened in the code editor.");
+      if (mediaKindForFilename(file.name)) {
+        const tabId = await openCloudMediaFile(file, currentProject ? currentProject.code : null);
+        if (tabId) setActiveTreeFileByTabId(tabId);
+        return;
+      }
+      alert('file type unsupported');
       return;
     }
     try {
@@ -269,10 +282,15 @@
     if (!currentProject) return;
     const activeEntry = editors[tabId];
     const saveId = tabId.startsWith('cloud_') ? tabId.slice('cloud_'.length) : null;
-    const archiveFileId = activeEntry && activeEntry.localArchiveFile ? String(activeEntry.localArchiveFile.fileId) : null;
+    const mediaEntry = typeof mediaViewers !== 'undefined' ? mediaViewers[tabId] : null;
+    const archiveFileId = (activeEntry && activeEntry.localArchiveFile ? String(activeEntry.localArchiveFile.fileId) : null)
+      || (mediaEntry && mediaEntry.archiveFileId);
+    const cloudMediaFileId = mediaEntry && mediaEntry.projectCode === currentProject.code ? mediaEntry.projectFileId : null;
     document.querySelectorAll('#sidebar-content .tree-row[data-file-id]').forEach(row => {
       const f = currentProject.files.find(x => String(x.id) === row.dataset.fileId);
-      const isActive = f && (currentProject.localArchive ? String(f.id) === archiveFileId : !!(saveId && f.save_id === saveId));
+      const isActive = f && (currentProject.localArchive
+        ? String(f.id) === archiveFileId
+        : (!!(saveId && f.save_id === saveId) || String(f.id) === cloudMediaFileId));
       row.classList.toggle('active', !!isActive);
     });
   }
