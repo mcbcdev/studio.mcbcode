@@ -142,8 +142,143 @@
   function renderHighlight() {
     clearTimeout(window._mcfRehighlightTimer);
     window._mcfRehighlightTimer = setTimeout(() => {
-      mcfunctionEditors.forEach(cm => updateMcfErrorGutter(cm));
+      mcfunctionEditors.forEach(cm => {
+        updateMcfErrorGutter(cm);
+        maybeShowMcfunctionHint(cm);
+      });
     }, 100);
+  }
+
+  const mcfunctionCommandNames = `ability aimassist allowlist camera camerashake changesetting clear clearspawnpoint clone controlscheme damage daylock deop dialogue difficulty effect enchant event execute fill fog function gamemode gamerule give help hud inputpermission kick kill list locate loot me mobevent msg music op particle permission playanimation playsound recipe reload replaceitem ride say schedule scoreboard script scriptevent setblock setmaxplayers setworldspawn spawnpoint spreadplayers stopsound structure summon tag teleport tell tellraw testfor testforblock testforblocks tickingarea time title titleraw toggledownfall weather wb worldbuilder xp w tp`.split(/\s+/);
+  const mcfunctionSelectors = ['@a', '@e', '@p', '@r', '@s', '@v'];
+  const mcfunctionGrammarLoads = new Set();
+
+  function mcfPatternsFor(commandData) {
+    if (Array.isArray(commandData.overloads)) return commandData.overloads.map(overload => overload.pattern).filter(Array.isArray);
+    return Array.isArray(commandData.pattern) ? [commandData.pattern] : [];
+  }
+
+  function mcfExpectedAfter(commandData, completedArgs) {
+    let patterns = mcfPatternsFor(commandData);
+    let argIndex = 0;
+    for (const arg of completedArgs) {
+      const survivors = patterns.filter(pattern => {
+        const expected = pattern[argIndex];
+        return expected && typeof getHighlightClass === 'function' && getHighlightClass(arg, expected) !== 'hl-error';
+      });
+      if (!survivors.length) return [];
+
+      const nested = [];
+      survivors.forEach(pattern => {
+        const expected = pattern[argIndex];
+        if (Array.isArray(expected.pattern)) nested.push(expected.pattern);
+        if (Array.isArray(expected.overloads)) {
+          expected.overloads.forEach(overload => {
+            if (Array.isArray(overload.pattern)) nested.push(overload.pattern);
+          });
+        }
+      });
+      patterns = survivors;
+      if (nested.length) {
+        patterns = nested;
+        argIndex = 0;
+      } else {
+        argIndex++;
+      }
+    }
+    return patterns.map(pattern => pattern[argIndex]).filter(Boolean);
+  }
+
+  function mcfSuggestionsForExpected(expected) {
+    if (!expected || expected.type === 'item_id') return [];
+    if (expected.type === 'target') return mcfunctionSelectors;
+    if (!Array.isArray(expected.options)) return [];
+    return expected.options.filter(option => typeof option === 'string' && option !== '*' && option.length > 0);
+  }
+
+  function requestMcfunctionGrammar(command) {
+    if (!command || mcfunctionGrammarLoads.has(command) || typeof fetchCommandGrammar !== 'function') return;
+    mcfunctionGrammarLoads.add(command);
+    Promise.resolve(fetchCommandGrammar(command)).finally(() => mcfunctionGrammarLoads.delete(command));
+  }
+
+  function mcfunctionHintResult(cm) {
+    const cursor = cm.getCursor();
+    const line = cm.getLine(cursor.line);
+    if (line.trimStart().startsWith('#')) return null;
+
+    const wordPattern = /[A-Za-z0-9_:@.-]/;
+    let fromCh = cursor.ch;
+    let toCh = cursor.ch;
+    while (fromCh > 0 && wordPattern.test(line[fromCh - 1])) fromCh--;
+    while (toCh < line.length && wordPattern.test(line[toCh])) toCh++;
+    const prefix = line.slice(fromCh, cursor.ch);
+    const beforeWord = line.slice(0, fromCh).trim();
+
+    let suggestions = [];
+    if (!beforeWord) {
+      if (prefix) {
+        const cachedCommands = typeof commandCache !== 'undefined' ? Object.keys(commandCache) : [];
+        suggestions = [...new Set([...mcfunctionCommandNames, ...cachedCommands])];
+      }
+    } else {
+      const tokens = beforeWord.split(/\s+/);
+      let command = tokens.shift().toLowerCase();
+      let completedArgs = tokens;
+
+      // After execute ... run, completion switches to the nested command's grammar.
+      if (command === 'execute') {
+        const runIndex = completedArgs.map(token => token.toLowerCase()).lastIndexOf('run');
+        if (runIndex >= 0) {
+          const nestedCommand = completedArgs[runIndex + 1];
+          if (!nestedCommand) {
+            suggestions = mcfunctionCommandNames;
+            command = '';
+          } else {
+            command = nestedCommand.toLowerCase();
+            completedArgs = completedArgs.slice(runIndex + 2);
+          }
+        }
+      }
+
+      if (command) {
+        const commandData = typeof commandCache !== 'undefined' ? commandCache[command] : null;
+        if (commandData) {
+          const expected = mcfExpectedAfter(commandData, completedArgs);
+          suggestions = [...new Set(expected.flatMap(mcfSuggestionsForExpected))];
+        } else {
+          requestMcfunctionGrammar(command);
+        }
+      }
+    }
+
+    const matches = suggestions
+      .filter(value => value.toLowerCase().startsWith(prefix.toLowerCase()))
+      .slice(0, 40)
+      .map(value => ({ text: value, displayText: value }));
+    return matches.length ? {
+      list: matches,
+      from: CodeMirror.Pos(cursor.line, fromCh),
+      to: CodeMirror.Pos(cursor.line, toCh)
+    } : null;
+  }
+
+  function maybeShowMcfunctionHint(cm) {
+    if (!mcfunctionEditors.has(cm) || typeof CodeMirror.showHint !== 'function') return;
+    const panel = cm.getWrapperElement().closest('.code-panel');
+    if (!panel || !panel.classList.contains('active')) {
+      if (cm.state.completionActive) cm.state.completionActive.close();
+      return;
+    }
+    clearTimeout(cm._mcfHintTimer);
+    cm._mcfHintTimer = setTimeout(() => {
+      const result = mcfunctionHintResult(cm);
+      if (result) {
+        CodeMirror.showHint(cm, () => result, { completeSingle: false, alignWithWord: true, closeOnUnfocus: true });
+      } else if (cm.state.completionActive) {
+        cm.state.completionActive.close();
+      }
+    }, 60);
   }
 
   // picks a syntax mode based on the file's extension, defaults to plain js-ish highlighting
@@ -477,6 +612,7 @@
           clearTimeout(cm._mcfGutterTimer);
           cm._mcfGutterTimer = setTimeout(() => updateMcfErrorGutter(cm), 250);
         });
+        cm.on('inputRead', () => maybeShowMcfunctionHint(cm));
       }
 
       attachTabEvents(tab);
