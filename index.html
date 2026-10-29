@@ -580,6 +580,177 @@
       font-size: 14px;
       line-height: 1.5;
     }
+    .media-code-panel {
+      background: var(--bg-3);
+    }
+    .media-viewer {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+      color: var(--text-body);
+      background: var(--bg-3);
+    }
+    .media-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 36px;
+      padding: 6px 12px;
+      color: var(--text-tab);
+      background: var(--bg-2);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+    }
+    .media-toolbar-title {
+      overflow: hidden;
+      color: var(--text-main);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .media-toolbar-detail {
+      flex-shrink: 0;
+      color: var(--text-muted);
+      text-align: right;
+    }
+    .media-image-stage {
+      display: grid;
+      flex: 1;
+      min-height: 0;
+      place-items: center;
+      overflow: auto;
+      padding: 24px;
+      background-color: var(--bg-3);
+      background-image: linear-gradient(45deg, var(--bg-5) 25%, transparent 25%),
+        linear-gradient(-45deg, var(--bg-5) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, var(--bg-5) 75%),
+        linear-gradient(-45deg, transparent 75%, var(--bg-5) 75%);
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+      background-size: 16px 16px;
+    }
+    .media-image-stage img,
+    .media-image-stage canvas {
+      display: block;
+      max-width: none;
+      image-rendering: pixelated;
+      object-fit: contain;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+    }
+    .media-image-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 6px 10px;
+      background: var(--bg-2);
+      border-top: 1px solid var(--border);
+    }
+    .media-image-controls button {
+      min-width: 30px;
+      min-height: 28px;
+      padding: 3px 8px;
+      color: var(--text-body);
+      background: var(--bg-6);
+      border: 1px solid var(--border-strong);
+      cursor: pointer;
+      font: 12px var(--font-mono);
+    }
+    .media-image-controls button:hover,
+    .media-image-controls button:focus-visible {
+      color: var(--accent);
+      border-color: var(--accent);
+      outline: none;
+    }
+    .media-image-controls span {
+      min-width: 54px;
+      color: var(--text-muted);
+      text-align: center;
+      font-size: 11px;
+    }
+    .media-bank-meta {
+      flex-shrink: 0;
+      padding: 8px 12px;
+      color: var(--text-sub);
+      background: var(--bg-3);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+    }
+    .media-sample-list {
+      flex: 1;
+      min-height: 96px;
+      overflow: auto;
+    }
+    .media-sample-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      width: 100%;
+      padding: 8px 12px;
+      color: var(--text-body);
+      background: var(--bg-3);
+      border: 0;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      text-align: left;
+      font: 12px var(--font-mono);
+    }
+    .media-sample-row:hover,
+    .media-sample-row.active {
+      color: var(--text-main);
+      background: var(--bg-7);
+    }
+    .media-sample-row.active {
+      box-shadow: inset 2px 0 var(--accent);
+    }
+    .media-sample-detail {
+      flex-shrink: 0;
+      color: var(--text-muted);
+      text-align: right;
+    }
+    .media-audio-wrap {
+      flex-shrink: 0;
+      padding: 12px;
+      background: var(--bg-2);
+      border-top: 1px solid var(--border);
+    }
+    .media-audio {
+      display: block;
+      width: 100%;
+      min-height: 36px;
+      color-scheme: dark;
+    }
+    .media-message {
+      margin: auto;
+      padding: 20px;
+      color: var(--text-sub);
+      text-align: center;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .media-error {
+      color: #ff8a8a;
+    }
+    @media (max-width: 600px) {
+      .media-toolbar {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .media-toolbar-detail {
+        text-align: left;
+      }
+      .media-sample-row {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .media-sample-detail {
+        text-align: left;
+      }
+    }
     .code-editor .CodeMirror-gutters {
       background: var(--bg-3);
       border-right: 1px solid var(--border);
@@ -2119,7 +2290,7 @@
   </div>
 
   <!-- hidden file input used for "Open Local File" -->
-  <input type="file" id="local-file-input" accept=".js,.mcfunction,.txt,.json,.md" style="display:none">
+  <input type="file" id="local-file-input" accept=".js,.mcfunction,.txt,.json,.md,.png,.tga,.ogg,.fsb" style="display:none">
   <input type="file" id="pack-file-input" accept=".mcpack,.mcaddon,application/zip" style="display:none">
 
 
@@ -2134,5 +2305,6 @@
   <script src="./js/layout.js"></script>
   <script src="./js/bedrock-wiki.js"></script>
   <script src="./js/local-files.js"></script>
+  <script src="./js/media-viewers.js"></script>
 </body>
 </html>

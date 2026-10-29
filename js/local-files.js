@@ -14,9 +14,21 @@ document.getElementById('btn-open-local').addEventListener('click', () => {
 localFileInput.addEventListener('change', () => {
   const file = localFileInput.files[0];
   if (!file) return;
+  const id = nextDynamicId();
+  const mediaKind = mediaKindForFilename(file.name);
+  if (mediaKind) {
+    openMediaTab(id, file.name, mediaKind, file, 'local file');
+    document.getElementById('openfile-overlay').classList.remove('show');
+    localFileInput.value = '';
+    return;
+  }
+  if (!/\.(js|mcfunction|txt|json|md)$/i.test(file.name)) {
+    alert('file type unsupported');
+    localFileInput.value = '';
+    return;
+  }
   const reader = new FileReader();
   reader.onload = () => {
-    const id = nextDynamicId();
     openTab(id, file.name, reader.result);
     document.getElementById('openfile-overlay').classList.remove('show');
   };
@@ -187,13 +199,25 @@ function isTextPackFile(filename) {
 
 async function openLocalArchiveFile(file) {
   if (file.type !== 'file' || !file.zipEntry) return;
-  if (!isTextPackFile(file.name)) {
-    alert(`${file.name} looks like a binary asset and can't be edited in the text editor.`);
+  const mediaKind = mediaKindForFilename(file.name);
+  if (!isTextPackFile(file.name) && !mediaKind) {
+    alert('file type unsupported');
     return;
   }
 
   try {
     const bytes = await file.zipEntry.async('uint8array');
+    if (mediaKind) {
+      const workspace = currentProject && currentProject.localArchive
+        ? currentProject.workspace
+        : latestArchiveWorkspace;
+      if (!workspace) return;
+      const id = `archive-${workspace.id}-${file.id}`;
+      openMediaTab(id, file.name, mediaKind, bytes, 'imported pack asset');
+      if (mediaViewers[id]) mediaViewers[id].archiveFileId = String(file.id);
+      setActiveTreeFileByTabId(id);
+      return;
+    }
     if (bytes.byteLength > 5 * 1024 * 1024) {
       alert(`${file.name} is over 5 MB and wasn't opened in the text editor.`);
       return;

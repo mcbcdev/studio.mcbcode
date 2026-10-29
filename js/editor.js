@@ -647,6 +647,7 @@
         mcfunctionEditors.delete(entry.cm);
         clearTimeout(entry.cm._mcfGutterTimer);
       }
+      if (typeof disposeMediaTab === 'function') disposeMediaTab(id);
       delete editors[id];
       delete findReplaceState[id];
       document.querySelector(`.file-item[data-file="${id}"]`)?.classList.remove('active');
