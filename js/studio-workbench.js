@@ -173,7 +173,7 @@
         });
       });
     }
-    summary.textContent = `${matchCount} open-buffer match${matchCount === 1 ? '' : 'es'} · ${filenameCount} filename match${filenameCount === 1 ? '' : 'es'}`;
+    summary.textContent = `${matchCount} open-buffer match${matchCount === 1 ? '' : 'es'} \u00b7 ${filenameCount} filename match${filenameCount === 1 ? '' : 'es'}`;
     if (!matchCount && !filenameCount) root.innerHTML = '<div class="search-empty">No matches. Unopened project file contents are not searched.</div>';
   }
   let searchRefreshTimer = null;
@@ -273,7 +273,7 @@
   async function runPackDoctor() {
     const body = byId('toolkit-body');
     if (!body) return;
-    body.innerHTML = '<div class="tool-hero"><span class="tool-kicker">workspace diagnostics</span><h4>scanning pack…</h4><p>checking manifests and indexing addon files.</p></div>';
+    body.innerHTML = '<div class="tool-hero"><span class="tool-kicker">workspace diagnostics</span><h4>scanning pack\u2026</h4><p>checking manifests and indexing addon files.</p></div>';
     const issues = [];
     const projectFiles = typeof currentProject !== 'undefined' && currentProject && Array.isArray(currentProject.files)
       ? currentProject.files.filter(file => file.type === 'file') : [];
@@ -337,7 +337,7 @@
             addIssue(issues, 'error', `${label} is invalid`, 'Each module must be an object.', path, target.file, { tabId: target.open?.[0] });
             return;
           }
-          if (!['data', 'resources', 'script'].includes(module.type)) addIssue(issues, 'warning', `${label} has an unfamiliar type`, `Module type “${String(module.type || 'missing')}” is not one of data, resources, or script.`, path, target.file, { tabId: target.open?.[0] });
+          if (!['data', 'resources', 'script'].includes(module.type)) addIssue(issues, 'warning', `${label} has an unfamiliar type`, `Module type \u201c${String(module.type || 'missing')}\u201d is not one of data, resources, or script.`, path, target.file, { tabId: target.open?.[0] });
           if (!UUID_PATTERN.test(String(module.uuid || ''))) addIssue(issues, 'error', `${label} UUID is invalid`, 'Every module must have its own valid UUID.', path, target.file, { tabId: target.open?.[0] });
           if (!validVersion(module.version)) addIssue(issues, 'error', `${label} version is invalid`, 'Use a three-number version array.', path, target.file, { tabId: target.open?.[0] });
           if (module.uuid && seen.has(module.uuid)) addIssue(issues, 'error', 'Duplicate module UUID', `Modules ${seen.get(module.uuid)} and ${index + 1} share the same UUID.`, path, target.file, { tabId: target.open?.[0] });
@@ -411,7 +411,14 @@
       if (issue.path) {
         const path = document.createElement('div'); path.className = 'issue-path'; path.textContent = issue.path; row.appendChild(path);
       }
-      if (issue.file || issue.tabId) row.addEventListener('click', () => openIssueFile(issue));
+      if (issue.file || issue.tabId) {
+        row.setAttribute('role', 'button');
+        row.tabIndex = 0;
+        row.addEventListener('click', () => openIssueFile(issue));
+        row.addEventListener('keydown', event => {
+          if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openIssueFile(issue); }
+        });
+      }
       list.appendChild(row);
     });
     body.appendChild(list);
@@ -438,9 +445,16 @@
       row.className = `output-line ${issue.level}`;
       const level = document.createElement('span'); level.className = 'output-level'; level.textContent = issue.level;
       const message = document.createElement('span'); message.className = 'output-message';
-      message.textContent = `${issue.title}${issue.path ? ` — ${issue.path}` : ''}: ${issue.detail}`;
+      message.textContent = `${issue.title}${issue.path ? ` \u2014 ${issue.path}` : ''}: ${issue.detail}`;
       row.append(level, message);
-      if (issue.file || issue.tabId) { row.style.cursor = 'pointer'; row.addEventListener('click', () => openIssueFile(issue)); }
+      if (issue.file || issue.tabId) {
+        row.setAttribute('role', 'button');
+        row.tabIndex = 0;
+        row.addEventListener('click', () => openIssueFile(issue));
+        row.addEventListener('keydown', event => {
+          if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openIssueFile(issue); }
+        });
+      }
       output.appendChild(row);
     });
   }
@@ -505,16 +519,16 @@
     const body = byId('toolkit-body');
     if (!body) return;
     body.innerHTML = `
-      <div class="tool-hero"><span class="tool-kicker">File Builder</span><h4>Bedrock pack files</h4><p>Generate a scratch manifest or function registration file. Download scratch files from File → Download Active File.</p></div>
+      <div class="tool-hero"><span class="tool-kicker">File Builder</span><h4>Bedrock pack files</h4><p>Generate a scratch manifest or function registration file. Use File &gt; Download Active File to save the selected tab.</p></div>
       <label class="view-field"><span>Pack name</span><input class="view-input" id="builder-pack-name" value="New Bedrock Pack" maxlength="60"></label>
       <label class="view-field"><span>Namespace</span><input class="view-input" id="builder-namespace" value="my_pack" maxlength="32"></label>
       <label class="view-field"><span>Pack type</span><select class="view-select" id="builder-pack-type"><option value="data">Behavior pack</option><option value="resources">Resource pack</option><option value="script">Script behavior pack</option></select></label>
       <div class="view-button-row"><button class="view-button primary" id="builder-manifest">Generate manifest.json</button></div>
-      <div class="prefs-card"><h4>Function registration</h4><p>Generate a tick.json entry and matching function file.</p>
+      <div class="prefs-card"><h4>Function registration</h4><p>Generate <code>functions/tick.json</code> and the referenced function file under <code>functions/</code>.</p>
         <label class="view-field"><span>Function ID</span><input class="view-input" id="builder-function-id" value="my_pack:tick" maxlength="80"></label>
-        <div class="view-button-row"><button class="view-button" id="builder-tick">Generate tick.json</button><button class="view-button" id="builder-function">Generate tick.mcfunction</button></div>
+        <div class="view-button-row"><button class="view-button" id="builder-tick">Generate functions/tick.json</button><button class="view-button" id="builder-function">Generate function file</button></div>
       </div>
-      <div class="builder-info">Generated files open in scratch tabs. They are not added to the active pack or project.</div>`;
+      <div class="builder-info">Generated files open in scratch tabs. They are not added to the active pack or project. After downloading, place function files under <code>functions/</code>.</div>`;
     byId('builder-manifest').addEventListener('click', makeManifest);
     byId('builder-tick').addEventListener('click', makeTickJson);
     byId('builder-function').addEventListener('click', makeTickFunction);
@@ -557,14 +571,14 @@
   }
   function makeTickJson() {
     const id = functionId();
-    openScratch('tick.json', JSON.stringify({ values: [id] }, null, 2));
-    showBuilderNotice('Generated tick.json. It registers the function ID shown in the builder.');
+    openScratch('functions/tick.json', JSON.stringify({ values: [id] }, null, 2));
+    showBuilderNotice(`Generated functions/tick.json with the registration for ${id}.`);
   }
   function makeTickFunction() {
     const id = functionId();
-    const name = id.split(':').pop().split('/').pop() || 'tick';
-    openScratch(`${name}.mcfunction`, `# Runs every tick when registered in functions/tick.json.\n# Add commands below; remove this comment before shipping if you prefer.\n`);
-    showBuilderNotice(`Generated a function starter for ${id}.`);
+    const path = id.split(':').pop() || 'tick';
+    openScratch(`functions/${path}.mcfunction`, `# Runs every tick when registered in functions/tick.json.\n# Add commands below; remove this comment before shipping if you prefer.\n`);
+    showBuilderNotice(`Generated functions/${path}.mcfunction for ${id}.`);
   }
   function showBuilderNotice(message) {
     const note = document.querySelector('#toolkit-body .builder-info:last-child');
@@ -572,7 +586,11 @@
   }
 
   function renderToolTab() {
-    document.querySelectorAll('[data-tool-tab]').forEach(button => button.classList.toggle('active', button.dataset.toolTab === activeToolTab));
+    document.querySelectorAll('[data-tool-tab]').forEach(button => {
+      const selected = button.dataset.toolTab === activeToolTab;
+      button.classList.toggle('active', selected);
+      button.setAttribute('aria-selected', selected ? 'true' : 'false');
+    });
     if (activeToolTab === 'doctor') renderDoctor();
     else if (activeToolTab === 'functions') renderFunctions();
     else renderBuilder();
@@ -589,7 +607,8 @@
     const tab = document.querySelector('.tab.active');
     const entry = tab ? editors[tab.dataset.tab] : null;
     if (!tab || !entry) { alert('Open a text file before downloading.'); return; }
-    const name = (tab.querySelector('.tab-label')?.textContent || 'untitled.txt').replace(/[\\/:*?"<>|]/g, '_');
+    const label = tab.querySelector('.tab-label')?.textContent || 'untitled.txt';
+    const name = (label.split('/').pop() || 'untitled.txt').replace(/[\\/:*?"<>|]/g, '_');
     const blob = new Blob([entry.cm.getValue()], { type: 'text/plain;charset=utf-8' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob); link.download = name; link.click();
@@ -600,6 +619,7 @@
     const output = byId('output-body');
     if (output) output.innerHTML = '<div class="search-empty">output cleared.</div>';
   });
+  byId('output-close')?.addEventListener('click', () => byId('output-panel')?.classList.remove('show'));
 
   // Initialize the new panels with useful content and live status.
   renderDoctor();

@@ -33,7 +33,23 @@
     menuItems.forEach(m => m.classList.remove('open'));
   });
 
-  // File and Edit actions use the active CodeMirror buffer rather than placeholders.
+  // File > New File / Open File / Save route to the real actions;
+  // editor and view commands are routed to the active workbench state.
+  document.querySelectorAll('[data-action="undo"]').forEach(el => {
+    el.addEventListener('click', () => window.studioRunEditorCommand?.('undo'));
+  });
+  document.querySelectorAll('[data-action="redo"]').forEach(el => {
+    el.addEventListener('click', () => window.studioRunEditorCommand?.('redo'));
+  });
+  document.querySelectorAll('[data-action="find-active"]').forEach(el => {
+    el.addEventListener('click', () => window.studioOpenActiveFind?.());
+  });
+  document.querySelectorAll('[data-action="toggle-sidebar"]').forEach(el => {
+    el.addEventListener('click', () => document.getElementById('sidebar-wrap')?.classList.toggle('collapsed'));
+  });
+  document.querySelectorAll('[data-action="toggle-console"]').forEach(el => {
+    el.addEventListener('click', () => window.toggleStudioOutput?.());
+  });
   document.querySelector('[data-action="new-file"]').addEventListener('click', () => {
     const id = nextDynamicId();
     openTab(id, 'untitled', '');
@@ -44,29 +60,11 @@
   document.querySelector('[data-action="save-file"]').addEventListener('click', () => {
     saveActiveTab();
   });
-  document.querySelector('[data-action="download-file"]').addEventListener('click', () => downloadActiveStudioFile());
-  document.querySelector('[data-action="undo"]').addEventListener('click', () => runEditorHistoryAction('undo'));
-  document.querySelector('[data-action="redo"]').addEventListener('click', () => runEditorHistoryAction('redo'));
-  document.querySelector('[data-action="find-active"]').addEventListener('click', () => {
-    const tab = document.querySelector('.tab.active');
-    if (tab) openFindReplace(tab.dataset.tab, false);
-    else openFileChooserIfNoActiveTab();
+  document.querySelector('[data-action="download-active-file"]').addEventListener('click', () => {
+    window.downloadActiveStudioFile?.();
   });
-  document.querySelector('[data-action="toggle-sidebar"]').addEventListener('click', () => {
-    document.getElementById('sidebar-wrap').classList.toggle('collapsed');
-  });
-  document.querySelector('[data-action="toggle-output"]').addEventListener('click', () => toggleStudioOutput());
 
-  function runEditorHistoryAction(action) {
-    const tab = document.querySelector('.tab.active');
-    const entry = tab && editors[tab.dataset.tab];
-    if (entry) entry.cm[action]();
-  }
-  function openFileChooserIfNoActiveTab() {
-    document.getElementById('openfile-overlay').classList.add('show');
-  }
-
-  // extension navigation opens the installed manager or marketplace
+  // extensions top-level menu item now opens the manager instead of the placeholder
   document.querySelector('[data-action="open-extensions"]').addEventListener('click', () => openExtManager('installed'));
   document.querySelector('[data-action="open-marketplace"]').addEventListener('click', () => openExtManager('marketplace'));
   document.querySelector('[data-action="open-theme"]').addEventListener('click', () => openThemeModal());
@@ -118,11 +116,12 @@
     const popupTitle = document.getElementById('account-popup-title');
     const popupBody = document.getElementById('account-popup-body');
     const popupBtn = document.getElementById('account-popup-btn');
+    const loginBtn = document.getElementById('btn-login');
     const accountIconImg = document.querySelector('#account-icon img');
 
     if (currentUser) {
       popupTitle.textContent = currentUser.username || 'Account';
-      popupBody.textContent = `${currentUser.points || 0} points${currentUser.is_obsidian ? ' · Obsidian' : ''}`;
+      popupBody.textContent = `${currentUser.points || 0} points${currentUser.is_obsidian ? ' \u00b7 Obsidian' : ''}`;
       popupBtn.textContent = 'Log out';
       popupBtn.style.display = 'block';
       popupBtn.onclick = async () => {
@@ -130,6 +129,7 @@
         currentUser = null;
         updateAuthUI();
       };
+      loginBtn.textContent = 'Account';
       accountIconImg.src = currentUser.pfp_url || 'https://mcbcode.com/img/icons/blank-transparent.png';
     } else {
       popupTitle.textContent = 'Account';
@@ -139,6 +139,7 @@
       popupBtn.onclick = () => {
         window.location.href = 'https://mcbcode.com/account?redirectto=https://studio.mcbcode.com';
       };
+      loginBtn.textContent = 'Login';
       accountIconImg.src = 'https://mcbcode.com/img/icons/blank-transparent.png';
     }
   }

@@ -85,6 +85,7 @@
       currentProject = { code, name, files: data.files }; // tracked separately from cloudNav so the sidebar tree
                                                              // stays put even after this browser popup closes
       renderFolder();
+      window.refreshStudioSearch?.();
     } catch (e) {
       cloudfileList.innerHTML = `<div class="cloudfile-error">${e.message}</div>`;
     }
@@ -183,12 +184,13 @@
     const sidebarTitle = document.getElementById('sidebar-title');
 
     if (!currentProject) {
-      // no project open — the explorer's explicit empty state remains visible
-      if (typeof updateStudioStatus === 'function') updateStudioStatus();
+      // no project open yet — leave the default demo file-items alone
       return;
     }
 
     sidebarTitle.textContent = currentProject.name;
+    window.studioRefreshSidebarTitle?.();
+    window.updateStudioStatus?.();
     sidebarContent.innerHTML = '';
 
     const backRow = document.createElement('div');
@@ -199,24 +201,21 @@
       currentProject = null;
       collapsedFolders.clear();
       sidebarTitle.textContent = 'Explorer';
+      window.studioRefreshSidebarTitle?.();
+      window.updateStudioStatus?.();
+      window.refreshStudioSearch?.();
       sidebarContent.innerHTML = `
-        <div id="explorer-empty" class="explorer-empty">
-          <strong>No folder opened</strong>
-          <p>Open a local pack or an mcbCode project to browse its files.</p>
-          <button class="view-button primary" id="explorer-open-pack">Open Pack</button>
-          <button class="view-button" id="explorer-open-cloud">Open mcbCode Project</button>
-        </div>
+        <div class="file-item" data-file="tab1" data-label="manifest.json" data-content="// manifest.json content goes here">manifest.json</div>
+        <div class="file-item" data-file="tab2" data-label="main.js" data-content="// main.js content goes here">main.js</div>
+        <div class="file-item" data-file="tab3" data-label="README.md" data-content="# README.md content goes here">README.md</div>
       `;
-      if (typeof updateStudioStatus === 'function') updateStudioStatus();
-      if (typeof studioRefreshSidebarTitle === 'function') studioRefreshSidebarTitle();
+      attachDemoFileItemEvents();
     });
     sidebarContent.appendChild(backRow);
 
     const treeRoot = document.createElement('div');
     sidebarContent.appendChild(treeRoot);
     buildTreeLevel(treeRoot, null, 0);
-    if (typeof studioRefreshSidebarTitle === 'function') studioRefreshSidebarTitle();
-    if (typeof updateStudioStatus === 'function') updateStudioStatus();
   }
 
   function buildTreeLevel(container, parentId, depth) {
@@ -299,5 +298,15 @@
         ? String(f.id) === archiveFileId
         : (!!(saveId && f.save_id === saveId) || String(f.id) === cloudMediaFileId));
       row.classList.toggle('active', !!isActive);
+    });
+  }
+
+  // the demo file-items need their click handler re-attached every time they're
+  // rebuilt (e.g. after closing a project back to the default state)
+  function attachDemoFileItemEvents() {
+    document.querySelectorAll('#sidebar-content .file-item').forEach(file => {
+      file.addEventListener('click', () => {
+        openTab(file.dataset.file, file.dataset.label, file.dataset.content);
+      });
     });
   }

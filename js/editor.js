@@ -31,9 +31,9 @@
         if (ch === '"' || ch === "'") { inString = ch; continue; }
         if (ch === open) depth++;
         else if (ch === close) depth--;
-        if (depth < 0) return `Unmatched "${close}" — extra closing ${label}`;
+        if (depth < 0) return `Unmatched "${close}" \u2014 extra closing ${label}`;
       }
-      if (depth > 0) return `Unclosed "${open}" — ${depth} ${label}${depth > 1 ? 's' : ''} not closed`;
+      if (depth > 0) return `Unclosed "${open}" \u2014 ${depth} ${label}${depth > 1 ? 's' : ''} not closed`;
     }
 
     // an unterminated quote (missing closing " or ') usually breaks the whole command
@@ -112,7 +112,7 @@
       const marker = document.createElement('div');
       marker.className = 'mcf-gutter-marker';
       marker.title = issue;
-      marker.textContent = '●';
+      marker.textContent = '\u25cf';
       cm.setGutterMarker(i, 'mcf-error-gutter', marker);
     }
   }
@@ -531,7 +531,7 @@
       tab.dataset.tab = id;
       tab.innerHTML = '<span class="dirty-dot"></span><span class="tab-label"></span><span class="close-btn"></span>';
       tab.querySelector('.tab-label').textContent = label;
-      tab.querySelector('.close-btn').textContent = '×';
+      tab.querySelector('.close-btn').textContent = '\u00d7';
       tab.querySelector('.close-btn').dataset.close = id;
       tabBar.appendChild(tab);
 
@@ -545,7 +545,7 @@
       if (saveId || localArchiveFile) {
         status.classList.add('show');
         // green dot = saved, red dot = unsaved changes, toggled by markDirty()
-        const saveMessage = saveId ? 'synced to your mcbCode account' : 'saved in imported pack — export pack to download';
+        const saveMessage = saveId ? 'synced to your mcbCode account' : 'saved in imported pack \u2014 export pack to download';
         status.innerHTML = `<span class="save-state-dot"></span><span>${saveMessage}</span><button class="save-btn">Save</button>`;
         status.querySelector('.save-btn').addEventListener('click', () => saveTab(id));
       }
@@ -557,9 +557,9 @@
         <div class="fr-row">
           <input type="text" class="fr-find-input" placeholder="Find">
           <span class="fr-count">0/0</span>
-          <button class="fr-prev" title="Previous match">˄</button>
-          <button class="fr-next" title="Next match">˅</button>
-          <button class="fr-toggle-replace" title="Toggle replace">⇄</button>
+          <button class="fr-prev" title="Previous match">\u02c4</button>
+          <button class="fr-next" title="Next match">\u02c5</button>
+          <button class="fr-toggle-replace" title="Toggle replace">\u21c4</button>
           <button class="fr-close" title="Close">&times;</button>
         </div>
         <div class="fr-row fr-replace-row hidden">
@@ -578,25 +578,25 @@
 
       const isLintable = lintableFilename(label);
       const isMcfunction = modeForFilename(label) === 'mcfunction';
-      const preferences = window.studioPreferences || {};
-      const configuredTabSize = preferences.tabSize === 'tab' || Number(preferences.tabSize) === 4 ? 4 : 2;
+      const preferences = window.studioPreferences || { fontSize: 14, tabSize: 2, lineNumbers: true, softWrap: false };
+      const tabSize = preferences.tabSize === 'tab' ? 4 : Number(preferences.tabSize) || 2;
       const gutters = [];
-      if (preferences.lineNumbers !== false) gutters.push('CodeMirror-linenumbers');
+      if (preferences.lineNumbers) gutters.push('CodeMirror-linenumbers');
       if (isLintable) gutters.push('CodeMirror-lint-markers');
       if (isMcfunction) gutters.push('mcf-error-gutter');
 
       const cm = CodeMirror(editorWrap, {
         value: content,
         mode: modeForFilename(label),
-        lineNumbers: preferences.lineNumbers !== false,
-        lineWrapping: !!preferences.softWrap,
+        lineNumbers: preferences.lineNumbers,
         theme: 'default',
         keyMap: 'sublime',        // unlocks multi-cursor shortcuts (see the Shortcuts menu)
         matchBrackets: true,
         styleActiveLine: true,
-        indentUnit: configuredTabSize,
-        tabSize: configuredTabSize,
+        indentUnit: tabSize,
+        tabSize,
         indentWithTabs: preferences.tabSize === 'tab',
+        lineWrapping: preferences.softWrap,
         gutters,
         lint: isLintable ? { esversion: 11, asi: true, undef: false, unused: false } : false,
         extraKeys: {
@@ -610,12 +610,12 @@
           'Esc': () => closeFindReplace(id)
         }
       });
-      if (preferences.fontSize) cm.getWrapperElement().style.fontSize = `${preferences.fontSize}px`;
 
+      cm.getWrapperElement().style.fontSize = `${preferences.fontSize || 14}px`;
       editors[id] = { cm, saveId: saveId || null, fileId: fileId || null, projectCode: projectCode || null, localArchiveFile: localArchiveFile || null, dirty: false };
       cm.on('change', () => {
         markDirty(id, true);
-        if (typeof refreshStudioSearch === 'function') refreshStudioSearch();
+        window.refreshStudioSearch?.();
       });
 
       if (isMcfunction) {
@@ -634,7 +634,8 @@
     }
 
     activateTab(id);
-    if (typeof updateStudioStatus === 'function') updateStudioStatus();
+    window.refreshStudioSearch?.();
+    window.updateStudioStatus?.();
   }
 
   // generates a unique tab id for files opened outside the sidebar (local files, new blank files, cloud files)
@@ -669,7 +670,7 @@
     }
     if (!entry.saveId) {
       // local/new file — nothing on the server to sync to
-      alert("This isn't a cloud file, so there's nothing to sync it to yet — save/download it locally instead.");
+      alert("This isn't a cloud file, so there's nothing to sync it to yet \u2014 save/download it locally instead.");
       return;
     }
     const tabLabelEl = document.querySelector(`.tab[data-tab="${id}"] .tab-label`);
@@ -810,10 +811,20 @@
         if (wasActive) setActiveTreeFileByTabId('');
         updateWelcomeVisibility();
       }
-      if (typeof updateStudioStatus === 'function') updateStudioStatus();
-      if (typeof refreshStudioSearch === 'function') refreshStudioSearch();
+      window.refreshStudioSearch?.();
+      window.updateStudioStatus?.();
     });
   }
+
+  // ================= sidebar: clicking a file opens/activates its tab =================
+  document.querySelectorAll('.file-item').forEach(file => {
+    file.addEventListener('click', () => {
+      const id = file.dataset.file;
+      const label = file.dataset.label;
+      const content = file.dataset.content;
+      openTab(id, label, content);
+    });
+  });
 
   updateWelcomeVisibility();
 
@@ -844,8 +855,28 @@
     openCloudBrowser();
   });
 
+  // "Login" button on the welcome screen: if already logged in, just pop the account
+  // popup instead of redirecting somewhere pointless
+  document.getElementById('btn-login').addEventListener('click', () => {
+    if (currentUser) {
+      accountPopup.classList.add('show');
+    } else {
+      window.location.href = 'https://mcbcode.com/account?redirectto=https://studio.mcbcode.com';
+    }
+  });
+
   // "New Blank File" -> opens an empty scratch tab to start typing in right away
   document.getElementById('btn-new-file').addEventListener('click', () => {
     const id = nextDynamicId();
     openTab(id, 'untitled', '');
   });
+
+  window.studioRunEditorCommand = function (command) {
+    const tab = document.querySelector('.tab.active');
+    const entry = tab ? editors[tab.dataset.tab] : null;
+    if (entry && ['undo', 'redo'].includes(command)) entry.cm.execCommand(command);
+  };
+  window.studioOpenActiveFind = function () {
+    const tab = document.querySelector('.tab.active');
+    if (tab) openFindReplace(tab.dataset.tab, false);
+  };

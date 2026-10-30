@@ -1,13 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <title>studio.mcbcode — bedrock addon workbench</title>
-  <meta name="description" content="A focused browser workbench for Minecraft Bedrock addon development.">
-  <link rel="stylesheet" href="https://mcbcode.com/theme/site.css">
-  <link rel="icon" href="https://mcbcode.com/theme/favicon.png">
+  <head>
+    <meta charset="utf-8">
+    <title>mcbCode Studio</title>
+    <link rel="stylesheet" href="https://mcbcode.com/theme/site.css">
+    <link rel="icon" href="https://mcbcode.com/theme/favicon.png">
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <!-- pwa tags -->
-  <meta name="theme-color" content="#1e1e1e">
+  <meta name="theme-color" content="#0c0c0c">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -1953,7 +1952,6 @@
       margin: 0 0 12px;
       font-size: 18px;
     }
-
 </style>
 <link rel="stylesheet" href="./css/studio.css">
 </head>
@@ -1969,7 +1967,7 @@
         <div data-action="new-file">New File</div>
         <div data-action="open-file">Open File</div>
         <div data-action="save-file">Save</div>
-        <div data-action="download-file">Download Active File</div>
+        <div data-action="download-active-file">Download Active File</div>
         <div data-action="export-pack" id="export-pack-action" style="display:none">Export Imported Pack</div>
       </div>
     </div>
@@ -1977,9 +1975,9 @@
     <div class="menu-item" data-menu="edit">
       Edit
       <div class="menu-dropdown">
-        <div data-action="undo">Undo <span class="menu-shortcut">Ctrl+Z</span></div>
-        <div data-action="redo">Redo <span class="menu-shortcut">Ctrl+Y</span></div>
-        <div data-action="find-active">Find in Active File <span class="menu-shortcut">Ctrl+F</span></div>
+        <div data-action="undo">Undo</div>
+        <div data-action="redo">Redo</div>
+        <div data-action="find-active">Find</div>
       </div>
     </div>
 
@@ -1987,7 +1985,7 @@
       View
       <div class="menu-dropdown">
         <div data-action="toggle-sidebar">Toggle Sidebar</div>
-        <div data-action="toggle-output">Toggle Problems Panel</div>
+        <div data-action="toggle-console">Toggle Console</div>
         <div data-action="toggle-wiki">Bedrock Wiki</div>
       </div>
     </div>
@@ -2015,30 +2013,39 @@
   <!-- ===== workspace: activity bar + sidebar + editor ===== -->
   <div id="workspace">
 
-    <!-- ===== activity bar: real destinations, no dead icons ===== -->
-    <div id="activity-bar" aria-label="Primary navigation">
-      <button class="activity-icon active" id="activity-explorer-icon" data-sidebar-view="explorer" title="Explorer" aria-label="Explorer">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5h6l2 2h9v10.8H3.5z"></path><path d="M3.5 6.5V4.7h6.2l1.7 1.8"></path><path d="M3.5 9h17"></path></svg>
+    <!-- ===== activity bar (icon strip) ===== -->
+      <div id="activity-bar">
+      <button class="activity-icon active" type="button" data-sidebar-view="explorer" aria-label="Explorer" aria-controls="sidebar-content" aria-pressed="true" title="Explorer">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5h7l1.7 2H21v9.2a1.8 1.8 0 0 1-1.8 1.8H4.8A1.8 1.8 0 0 1 3 17.7V6.5Z"></path><path d="M3 10h18"></path></svg>
       </button>
-      <button class="activity-icon" id="activity-search-icon" data-sidebar-view="search" title="Search workspace" aria-label="Search workspace">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.6"></circle><path d="m16 16 4.6 4.6"></path></svg>
+      <button class="activity-icon" type="button" data-sidebar-view="search" aria-label="Workspace Search" aria-controls="search-panel" aria-pressed="false" title="Workspace Search">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.3"></circle><path d="m15.5 15.5 5 5"></path></svg>
       </button>
-      <button class="activity-icon" id="activity-toolkit-icon" data-sidebar-view="toolkit" title="Bedrock workbench" aria-label="Bedrock workbench">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h14v15H5z"></path><path d="M8 8h8M8 12h4M8 16h6"></path><path d="m15.5 12.5 1.2 1.2 2.3-2.5"></path></svg>
+      <button class="activity-icon" type="button" id="activity-extensions-icon" aria-label="Extensions" title="Extensions">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H4a1 1 0 0 0-1 1v5h2a2 2 0 1 1 0 4H3v6a1 1 0 0 0 1 1h5v-2a2 2 0 1 1 4 0v2h6a1 1 0 0 0 1-1v-5h-2a2 2 0 1 1 0-4h2V4a1 1 0 0 0-1-1h-5v2a2 2 0 1 1-4 0V3Z"></path></svg>
       </button>
-      <button class="activity-icon" id="activity-settings-icon" data-sidebar-view="settings" title="Editor preferences" aria-label="Editor preferences">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="m19.4 15 .1.1 1 1.7-1.8 3.1-2-.5a8 8 0 0 1-1.6.9l-.4 2h-3.6l-.4-2a8 8 0 0 1-1.6-.9l-2 .5-1.8-3.1 1-1.7a8 8 0 0 1 0-1.9l-1-1.7 1.8-3.1 2 .5a8 8 0 0 1 1.6-.9l.4-2h3.6l.4 2a8 8 0 0 1 1.6.9l2-.5 1.8 3.1-1 1.7a8 8 0 0 1-.1 1.9Z"></path></svg>
+      <button class="activity-icon" type="button" data-sidebar-view="settings" aria-label="Editor Preferences" aria-controls="settings-panel" aria-pressed="false" title="Editor Preferences">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.7 2.9-.2-.1a1.7 1.7 0 0 0-1.8-.1 1.7 1.7 0 0 0-1 1.5v.2h-3.4v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.1l-.2.1L7 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H5.7v-3.4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9L7 7.6l1.7-2.9.2.1a1.7 1.7 0 0 0 1.8.1 1.7 1.7 0 0 0 1-1.5v-.2h3.4v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.1l.2-.1 1.7 2.9-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2V14h-.2a1.7 1.7 0 0 0-1.5 1Z"></path></svg>
       </button>
-      <button class="activity-icon" id="activity-extensions-icon" title="Extensions" aria-label="Extensions">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 4H5v5.2H3.8a2.2 2.2 0 1 0 0 4.4H5V19h5.2v-1.2a2.2 0 1 1 4.4 0V19H19v-5.2h1.2a2.2 2.2 0 1 0 0-4.4H19V4h-5.2v1.2a2.2 2.2 0 1 1-4.4 0V4Z"></path></svg>
+      <button class="activity-icon" type="button" data-sidebar-view="toolkit" aria-label="Bedrock Workbench" aria-controls="toolkit-panel" aria-pressed="false" title="Bedrock Workbench">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8.5 7-5 5 5 5M15.5 7l5 5-5 5M13.5 5l-3 14"></path></svg>
       </button>
-      <button class="activity-icon" id="activity-wiki-icon" title="Bedrock Wiki" aria-label="Bedrock Wiki">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5v-17Z"></path><path d="M20 19v3H6.5A2.5 2.5 0 0 1 4 19.5"></path><path d="M9 7h6M9 10.5h6"></path></svg>
-      </button>
+
+      <!-- inline svg since there's no themed png asset for this one yet -->
+      <div class="activity-icon" id="activity-wiki-icon" title="Bedrock Wiki">
+        <svg viewBox="0 0 24 24">
+          <path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5v-17Z"></path>
+          <path d="M20 19v3H6.5A2.5 2.5 0 0 1 4 19.5"></path>
+          <line x1="9" y1="7" x2="15" y2="7"></line>
+          <line x1="9" y1="10.5" x2="15" y2="10.5"></line>
+        </svg>
+      </div>
+
       <div id="activity-spacer"></div>
-      <button class="activity-icon" id="account-icon" title="Account" aria-label="Account">
-        <img src="https://mcbcode.com/img/icons/blank-transparent.png" alt="">
-      </button>
+
+      <div class="activity-icon" id="account-icon">
+        <img src="https://mcbcode.com/img/icons/blank-transparent.png" alt="account">
+      </div>
       <div id="account-popup">
         <h4 id="account-popup-title">Account</h4>
         <p id="account-popup-body">checking login status...</p>
@@ -2051,36 +2058,38 @@
       <div id="sidebar">
         <h3 id="sidebar-title">Explorer</h3>
         <div id="sidebar-content">
-          <div id="explorer-empty" class="explorer-empty">
-            <strong>No folder opened</strong>
-            <p>Open a local pack or an mcbCode project to browse its files.</p>
-            <button class="view-button primary" id="explorer-open-pack">Open Pack</button>
-            <button class="view-button" id="explorer-open-cloud">Open mcbCode Project</button>
-          </div>
+          <div class="file-item" data-file="tab1" data-label="manifest.json" data-content="// manifest.json content goes here">manifest.json</div>
+          <div class="file-item" data-file="tab2" data-label="main.js" data-content="// main.js content goes here">main.js</div>
+          <div class="file-item" data-file="tab3" data-label="README.md" data-content="# README.md content goes here">README.md</div>
+          <!-- once a project file is opened from the cloud, this whole block gets replaced
+               by a real folder tree built from that project's files (see renderSidebarTree) -->
         </div>
         <section id="search-panel" class="sidebar-view" hidden>
-          <p>Search file names across the project and text inside open editor tabs. Use Ctrl+F for the active file only.</p>
-          <label class="view-field"><span>Query</span><input class="view-input" id="workspace-search" type="search" placeholder="id, function, manifest..." autocomplete="off"></label>
-          <div id="search-summary" class="search-summary">Enter at least two characters.</div>
-          <div id="search-results"><div class="search-empty">Search results include open text tabs and file names in the active project.</div></div>
+          <div class="panel-controls">
+            <label for="workspace-search">Search workspace</label>
+            <input id="workspace-search" type="search" placeholder="Search open buffers and file names" autocomplete="off">
+            <div id="search-summary" class="panel-summary">Search open files and project paths.</div>
+          </div>
+          <div id="search-results" class="search-results"></div>
         </section>
         <section id="settings-panel" class="sidebar-view" hidden>
-          <div class="prefs-card"><h4>Editing</h4><p>Saved in this browser. These settings only change the editor, not your pack files.</p>
-            <label class="preference-row"><span>Font size</span><span class="preference-range"><input id="pref-font-size" type="range" min="12" max="20" step="1"><output id="pref-font-size-value"></output></span></label>
-            <label class="preference-row"><span>Indent width</span><select class="view-select" id="pref-tab-size"><option value="2">2 spaces</option><option value="4">4 spaces</option><option value="tab">Tab characters</option></select></label>
-            <label class="preference-row"><span>Line numbers</span><input id="pref-line-numbers" type="checkbox"></label>
-            <label class="preference-row"><span>Soft wrap</span><input id="pref-soft-wrap" type="checkbox"></label>
+          <div class="panel-controls">
+            <div class="panel-section-title">Editor Preferences</div>
+            <label class="view-field" for="pref-font-size"><span>Font size</span><div class="range-row"><input id="pref-font-size" type="range" min="12" max="20" step="1" value="14"><output id="pref-font-size-value">14px</output></div></label>
+            <label class="view-field" for="pref-tab-size"><span>Indentation</span><select id="pref-tab-size" class="view-select"><option value="2">2 spaces</option><option value="4">4 spaces</option><option value="tab">Tabs</option></select></label>
+            <label class="check-field"><input id="pref-line-numbers" type="checkbox" checked><span>Show line numbers</span></label>
+            <label class="check-field"><input id="pref-soft-wrap" type="checkbox"><span>Wrap long lines</span></label>
+            <button id="pref-reset" class="view-button" type="button">Reset Preferences</button>
+            <p class="panel-note">Preferences are stored in this browser and apply to open editor tabs.</p>
           </div>
-          <div class="view-button-row"><button class="view-button" id="pref-reset">Restore defaults</button></div>
-          <div id="preferences-saved" class="builder-info">Preferences are stored in this browser.</div>
         </section>
         <section id="toolkit-panel" class="sidebar-view" hidden>
-          <div class="sidebar-tabbar" role="tablist" aria-label="Bedrock workbench tools">
-            <button class="sidebar-tab active" data-tool-tab="doctor" role="tab">Doctor</button>
-            <button class="sidebar-tab" data-tool-tab="functions" role="tab">Functions</button>
-            <button class="sidebar-tab" data-tool-tab="builder" role="tab">Builder</button>
+          <div class="panel-tabs" role="tablist" aria-label="Bedrock tools">
+            <button class="panel-tab active" type="button" data-tool-tab="doctor" role="tab" aria-selected="true">Doctor</button>
+            <button class="panel-tab" type="button" data-tool-tab="functions" role="tab" aria-selected="false">Functions</button>
+            <button class="panel-tab" type="button" data-tool-tab="builder" role="tab" aria-selected="false">Builder</button>
           </div>
-          <div id="toolkit-body"></div>
+          <div id="toolkit-body" class="toolkit-body"></div>
         </section>
       </div>
       <div id="sidebar-resizer"></div>
@@ -2104,22 +2113,20 @@
 
       <div id="code-area">
         <div id="welcome-panel" class="show">
-          <div class="welcome-shell">
-            <div class="welcome-copy">
-              <h1>No file open</h1>
-              <p>Open a workspace or create a scratch file.</p>
-            </div>
-            <div id="welcome-buttons">
-              <button class="welcome-btn" id="btn-open-file">Open Workspace...</button>
-              <button class="welcome-btn" id="btn-new-file">New Scratch File</button>
-            </div>
+          <img src="https://mcbcode.com/img/icons/studio_logo.png" alt="logo">
+          <p id="subtext">Welcome to the mcbCode Studio.</p>
+
+          <div id="welcome-buttons">
+            <button class="welcome-btn" id="btn-open-file">Open File</button>
+            <button class="welcome-btn" id="btn-login">Login</button>
+            <button class="welcome-btn" id="btn-new-file">New Blank File</button>
           </div>
         </div>
       </div>
-      <div id="output-panel" aria-label="Problems and pack diagnostics" aria-live="polite">
-        <div id="output-header"><span>Problems / Pack Diagnostics</span><button id="output-clear">Clear</button></div>
-        <div id="output-body"><div class="search-empty">Run the Pack Doctor to view workspace checks.</div></div>
-      </div>
+      <section id="output-panel" aria-label="Console output">
+        <div id="output-header"><span>Console</span><div><button id="output-clear" type="button">Clear</button><button id="output-close" type="button" aria-label="Close Console">×</button></div></div>
+        <div id="output-body"></div>
+      </section>
       <div id="ext-status-bar"></div>
     </div>
 
@@ -2140,10 +2147,6 @@
       </div>
     </div>
   </div>
-  <footer id="studio-status-bar" aria-label="Workspace status">
-    <div class="status-cluster"><span class="status-chip"><span class="status-led"></span><span id="studio-status-project">No workspace</span></span><span id="studio-status-view" class="status-chip status-hide-mobile">Explorer</span></div>
-    <div class="status-cluster"><span id="studio-status-tabs" class="status-chip">0 open files</span><span class="status-chip status-hide-mobile">bedrock edition</span></div>
-  </footer>
 
   <!-- ===== keyboard shortcuts modal ===== -->
   <div id="shortcuts-overlay">

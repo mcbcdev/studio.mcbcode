@@ -1,18 +1,8 @@
-const CACHE_NAME = 'studio-mcbcode-v4';
+const CACHE_NAME = 'studio-mcbcode-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/manifest.json',
   '/css/studio.css',
-  '/js/app-core.js',
-  '/js/editor.js',
-  '/js/cloud-projects.js',
-  '/js/themes.js',
-  '/js/extensions.js',
-  '/js/layout.js',
-  '/js/bedrock-wiki.js',
-  '/js/local-files.js',
-  '/js/media-viewers.js',
   '/js/studio-workbench.js'
 ];
 
