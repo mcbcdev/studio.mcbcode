@@ -33,8 +33,7 @@
     menuItems.forEach(m => m.classList.remove('open'));
   });
 
-  // File > New File / Open File / Save route to the real actions;
-  // editor and view commands are routed to the active workbench state.
+  // File, editor, and view commands route to their active workspace actions.
   document.querySelectorAll('[data-action="undo"]').forEach(el => {
     el.addEventListener('click', () => window.studioRunEditorCommand?.('undo'));
   });
@@ -47,9 +46,6 @@
   document.querySelectorAll('[data-action="toggle-sidebar"]').forEach(el => {
     el.addEventListener('click', () => document.getElementById('sidebar-wrap')?.classList.toggle('collapsed'));
   });
-  document.querySelectorAll('[data-action="toggle-console"]').forEach(el => {
-    el.addEventListener('click', () => window.toggleStudioOutput?.());
-  });
   document.querySelectorAll('[data-action="open-command-palette"]').forEach(el => {
     el.addEventListener('click', () => window.studioOpenCommandPalette?.());
   });
@@ -58,15 +54,6 @@
   });
   document.querySelectorAll('[data-action="toggle-geometry-preview"]').forEach(el => {
     el.addEventListener('click', () => window.toggleBedrockGeometryPreview?.());
-  });
-  document.querySelectorAll('[data-action="open-pack-doctor"]').forEach(el => {
-    el.addEventListener('click', () => window.openStudioToolkit?.('doctor'));
-  });
-  document.querySelectorAll('[data-action="open-function-index"]').forEach(el => {
-    el.addEventListener('click', () => window.openStudioToolkit?.('functions'));
-  });
-  document.querySelectorAll('[data-action="open-file-builder"]').forEach(el => {
-    el.addEventListener('click', () => window.openStudioToolkit?.('builder'));
   });
   document.querySelector('[data-action="new-file"]').addEventListener('click', () => {
     const id = nextDynamicId();

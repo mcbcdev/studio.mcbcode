@@ -459,10 +459,6 @@
         if (dataAction('toggle-sidebar')) return;
         document.getElementById('sidebar-wrap')?.classList.toggle('collapsed');
         break;
-      case 'toggle-console':
-        if (safeCall(window.toggleStudioOutput)) return;
-        dataAction('toggle-console');
-        break;
       case 'workspace-search':
         if (safeCall(window.studioOpenWorkspaceSearch)) return;
         if (sidebarView('search')) return;
@@ -473,15 +469,6 @@
         if (sidebarView('settings')) return;
         clickFirst(['[data-action="preferences"]']);
         break;
-      case 'doctor':
-      case 'functions':
-      case 'builder': {
-        const tab = action === 'doctor' ? 'doctor' : action;
-        if (typeof window.openStudioToolkit === 'function') safeCall(window.openStudioToolkit, tab);
-        else sidebarView('toolkit');
-        requestAnimationFrame(() => clickFirst([`[data-tool-tab="${tab}"]`]));
-        break;
-      }
       case 'wiki':
         if (safeCall(window.studioOpenBedrockWiki)) return;
         if (clickFirst(['[data-action="toggle-wiki"]'])) return;
@@ -568,12 +555,8 @@
     { label: 'New Blank File', description: 'Create an empty editor tab', action: 'new-file', aliases: 'new file' },
     { label: 'Save', description: 'Save the active file', action: 'save', aliases: 'save active file' },
     { label: 'Toggle Sidebar', description: 'Show or hide the sidebar', action: 'toggle-sidebar', aliases: 'view explorer' },
-    { label: 'Toggle Console', description: 'Show or hide the output panel', action: 'toggle-console', aliases: 'output terminal' },
     { label: 'Workspace Search', description: 'Search files and open buffers', action: 'workspace-search', aliases: 'find search' },
     { label: 'Preferences', description: 'Editor settings', action: 'preferences', aliases: 'settings' },
-    { label: 'Bedrock Doctor', description: 'Inspect the active workspace', action: 'doctor', aliases: 'diagnostics' },
-    { label: 'Function Index', description: 'Browse functions in the workspace', action: 'functions', aliases: 'functions' },
-    { label: 'File Builder', description: 'Build common Bedrock files', action: 'builder', aliases: 'builder' },
     { label: 'Bedrock Wiki', description: 'Open the Bedrock reference panel', action: 'wiki', aliases: 'wiki' },
     { label: 'Extensions', description: 'Manage installed extensions', action: 'extensions', aliases: 'plugins marketplace' },
     { label: 'Custom Theme', description: 'Edit the studio theme', action: 'theme', aliases: 'theme appearance' }

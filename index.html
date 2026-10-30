@@ -136,18 +136,28 @@
       color: var(--text-main);
     }
     .menu-dropdown {
-      display: none;
+      display: block;
       position: absolute;
       top: 100%;
       left: 0;
-      background: #252525;
+      background: rgba(37, 37, 37, 0.94);
       border: 1px solid var(--border-strong);
       min-width: 180px;
       z-index: 50;
       box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+      -webkit-backdrop-filter: blur(8px);
+      backdrop-filter: blur(8px);
+      visibility: hidden;
+      opacity: 0;
+      transform: translateY(-4px);
+      pointer-events: none;
+      transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out, visibility 0.2s ease-in-out;
     }
     .menu-item.open .menu-dropdown {
-      display: block;
+      visibility: visible;
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
     }
     .menu-dropdown div {
       padding: 8px 12px;
@@ -1985,20 +1995,10 @@
       View
       <div class="menu-dropdown">
         <div data-action="toggle-sidebar">Toggle Sidebar</div>
-        <div data-action="toggle-console">Toggle Console</div>
         <div data-action="open-quick-open">Quick Open</div>
         <div data-action="open-command-palette">Command Palette</div>
         <div data-action="toggle-geometry-preview">Preview Geometry</div>
         <div data-action="toggle-wiki">Bedrock Wiki</div>
-      </div>
-    </div>
-
-    <div class="menu-item" data-menu="tools">
-      Tools
-      <div class="menu-dropdown">
-        <div data-action="open-pack-doctor">Pack Doctor</div>
-        <div data-action="open-function-index">Function Index</div>
-        <div data-action="open-file-builder">File Builder</div>
       </div>
     </div>
 
@@ -2105,21 +2105,6 @@
       <div id="sidebar-resizer"></div>
     </div>
 
-    <div id="tools-overlay" class="tools-overlay" aria-hidden="true">
-      <section id="tools-dialog" role="dialog" aria-modal="true" aria-labelledby="tools-title">
-        <header class="tools-header">
-          <h2 id="tools-title">Bedrock Tools</h2>
-          <button id="tools-close" type="button" aria-label="Close tools">&times;</button>
-        </header>
-        <div class="panel-tabs" role="tablist" aria-label="Bedrock tools">
-          <button class="panel-tab active" type="button" data-tool-tab="doctor" role="tab" aria-selected="true">Doctor</button>
-          <button class="panel-tab" type="button" data-tool-tab="functions" role="tab" aria-selected="false">Functions</button>
-          <button class="panel-tab" type="button" data-tool-tab="builder" role="tab" aria-selected="false">Builder</button>
-        </div>
-        <div id="toolkit-body" class="toolkit-body"></div>
-      </section>
-    </div>
-
     <!-- ===== editor area: tabs + code ===== -->
     <div id="editor-area">
 
@@ -2148,10 +2133,6 @@
           </div>
         </div>
       </div>
-      <section id="output-panel" aria-label="Console output">
-        <div id="output-header"><span>Console</span><div><button id="output-clear" type="button">Clear</button><button id="output-close" type="button" aria-label="Close Console">×</button></div></div>
-        <div id="output-body"></div>
-      </section>
       <div id="ext-status-bar"></div>
     </div>
 
