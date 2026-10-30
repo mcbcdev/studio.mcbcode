@@ -844,16 +844,6 @@
     openCloudBrowser();
   });
 
-  // "Login" button on the welcome screen: if already logged in, just pop the account
-  // popup instead of redirecting somewhere pointless
-  document.getElementById('btn-login').addEventListener('click', () => {
-    if (currentUser) {
-      accountPopup.classList.add('show');
-    } else {
-      window.location.href = 'https://mcbcode.com/account?redirectto=https://studio.mcbcode.com';
-    }
-  });
-
   // "New Blank File" -> opens an empty scratch tab to start typing in right away
   document.getElementById('btn-new-file').addEventListener('click', () => {
     const id = nextDynamicId();

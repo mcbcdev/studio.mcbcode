@@ -7,7 +7,7 @@
   <link rel="icon" href="https://mcbcode.com/theme/favicon.png">
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <!-- pwa tags -->
-  <meta name="theme-color" content="#101715">
+  <meta name="theme-color" content="#1e1e1e">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -2052,21 +2052,19 @@
         <h3 id="sidebar-title">Explorer</h3>
         <div id="sidebar-content">
           <div id="explorer-empty" class="explorer-empty">
-            <span class="explorer-empty-mark">//</span><strong>no workspace open</strong>
-            <p>open a local pack or an mcbCode project to browse its files here.</p>
-            <button class="view-button primary" id="explorer-open-pack">Open a pack</button>
-            <button class="view-button" id="explorer-open-cloud">Open mcbCode project</button>
+            <strong>No folder opened</strong>
+            <p>Open a local pack or an mcbCode project to browse its files.</p>
+            <button class="view-button primary" id="explorer-open-pack">Open Pack</button>
+            <button class="view-button" id="explorer-open-cloud">Open mcbCode Project</button>
           </div>
         </div>
         <section id="search-panel" class="sidebar-view" hidden>
-          <p class="view-kicker">workspace search</p>
           <p>Search file names across the project and text inside open editor tabs. Use Ctrl+F for the active file only.</p>
-          <label class="view-field"><span>QUERY</span><input class="view-input" id="workspace-search" type="search" placeholder="id, function, manifest..." autocomplete="off"></label>
-          <div id="search-summary" class="search-summary">type at least 2 characters</div>
-          <div id="search-results"><div class="search-empty">results from open text tabs and the current project file tree appear here.</div></div>
+          <label class="view-field"><span>Query</span><input class="view-input" id="workspace-search" type="search" placeholder="id, function, manifest..." autocomplete="off"></label>
+          <div id="search-summary" class="search-summary">Enter at least two characters.</div>
+          <div id="search-results"><div class="search-empty">Search results include open text tabs and file names in the active project.</div></div>
         </section>
         <section id="settings-panel" class="sidebar-view" hidden>
-          <p class="view-kicker">editor preferences</p>
           <div class="prefs-card"><h4>Editing</h4><p>Saved in this browser. These settings only change the editor, not your pack files.</p>
             <label class="preference-row"><span>Font size</span><span class="preference-range"><input id="pref-font-size" type="range" min="12" max="20" step="1"><output id="pref-font-size-value"></output></span></label>
             <label class="preference-row"><span>Indent width</span><select class="view-select" id="pref-tab-size"><option value="2">2 spaces</option><option value="4">4 spaces</option><option value="tab">Tab characters</option></select></label>
@@ -2074,7 +2072,7 @@
             <label class="preference-row"><span>Soft wrap</span><input id="pref-soft-wrap" type="checkbox"></label>
           </div>
           <div class="view-button-row"><button class="view-button" id="pref-reset">Restore defaults</button></div>
-          <div id="preferences-saved" class="builder-info">preferences are stored locally on this device.</div>
+          <div id="preferences-saved" class="builder-info">Preferences are stored in this browser.</div>
         </section>
         <section id="toolkit-panel" class="sidebar-view" hidden>
           <div class="sidebar-tabbar" role="tablist" aria-label="Bedrock workbench tools">
@@ -2107,25 +2105,20 @@
       <div id="code-area">
         <div id="welcome-panel" class="show">
           <div class="welcome-shell">
-            <div class="welcome-eyebrow"><span class="led"></span> a focused workspace for bedrock creators</div>
-            <div class="welcome-heading-row"><div class="welcome-copy">
-              <h1>build bedrock.<br><em>skip the busywork.</em></h1>
-              <p>edit packs locally or from mcbCode, inspect manifests before they bite, and keep your functions, assets, and docs one useful click away.</p>
-            </div><div class="welcome-orbit" aria-hidden="true"><span>mc</span></div></div>
-            <div id="welcome-buttons"><button class="welcome-btn" id="btn-open-file">Open a workspace</button><button class="welcome-btn" id="btn-login">Login</button><button class="welcome-btn" id="btn-new-file">New scratch file</button></div>
-            <div class="welcome-section-head"><span>jump back into the work</span><span>choose a starting point</span></div>
-            <div class="welcome-launch-grid">
-              <button class="launch-card" id="launch-pack"><span class="launch-icon">01</span><strong>inspect a pack</strong><small>open a .mcpack or .mcaddon and work browser-local</small></button>
-              <button class="launch-card" id="launch-cloud"><span class="launch-icon">02</span><strong>open an mcbCode project</strong><small>browse files and sync edits to your account</small></button>
-              <button class="launch-card" id="launch-doctor"><span class="launch-icon">03</span><strong>run the pack doctor</strong><small>check UUIDs, modules, manifests, and functions</small></button>
+            <div class="welcome-copy">
+              <h1>No file open</h1>
+              <p>Open a workspace or create a scratch file.</p>
             </div>
-            <div class="welcome-foot"><span><b>local first</b> imported packs stay in your browser</span><span><b>built for bedrock</b> JSON, scripts &amp; mcfunction</span><span><b>no pretend console</b> diagnostics are real checks</span></div>
+            <div id="welcome-buttons">
+              <button class="welcome-btn" id="btn-open-file">Open Workspace...</button>
+              <button class="welcome-btn" id="btn-new-file">New Scratch File</button>
+            </div>
           </div>
         </div>
       </div>
       <div id="output-panel" aria-label="Problems and pack diagnostics" aria-live="polite">
         <div id="output-header"><span>Problems / Pack Diagnostics</span><button id="output-clear">Clear</button></div>
-        <div id="output-body"><div class="search-empty">run the pack doctor to see actionable workspace checks here. this is a diagnostics panel, not a live minecraft console.</div></div>
+        <div id="output-body"><div class="search-empty">Run the Pack Doctor to view workspace checks.</div></div>
       </div>
       <div id="ext-status-bar"></div>
     </div>
@@ -2148,7 +2141,7 @@
     </div>
   </div>
   <footer id="studio-status-bar" aria-label="Workspace status">
-    <div class="status-cluster"><span class="status-chip"><span class="status-led"></span><span id="studio-status-project">no workspace</span></span><span id="studio-status-view" class="status-chip status-hide-mobile">explorer</span></div>
+    <div class="status-cluster"><span class="status-chip"><span class="status-led"></span><span id="studio-status-project">No workspace</span></span><span id="studio-status-view" class="status-chip status-hide-mobile">Explorer</span></div>
     <div class="status-cluster"><span id="studio-status-tabs" class="status-chip">0 open files</span><span class="status-chip status-hide-mobile">bedrock edition</span></div>
   </footer>
 

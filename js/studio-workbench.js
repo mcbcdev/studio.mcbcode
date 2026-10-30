@@ -25,7 +25,7 @@
   window.studioPreferences = readPreferences();
 
   function updateStudioStatus() {
-    const project = typeof currentProject !== 'undefined' && currentProject ? currentProject.name : 'no workspace';
+    const project = typeof currentProject !== 'undefined' && currentProject ? currentProject.name : 'No workspace';
     const opened = document.querySelectorAll('.tab').length;
     const projectEl = byId('studio-status-project');
     const tabsEl = byId('studio-status-tabs');
@@ -37,7 +37,7 @@
   function setSidebarView(view) {
     activeSidebarView = view;
     byId('sidebar-wrap')?.classList.remove('collapsed');
-    const labels = { explorer: 'explorer', search: 'workspace search', settings: 'editor preferences', toolkit: 'bedrock workbench' };
+    const labels = { explorer: 'Explorer', search: 'Search', settings: 'Preferences', toolkit: 'Bedrock Workbench' };
     const content = byId('sidebar-content');
     if (content) content.hidden = view !== 'explorer';
     ['search-panel', 'settings-panel', 'toolkit-panel'].forEach(id => {
@@ -65,7 +65,7 @@
     if (!title) return;
     title.textContent = activeSidebarView === 'explorer' && typeof currentProject !== 'undefined' && currentProject
       ? currentProject.name
-      : ({ explorer: 'Explorer', search: 'Workspace Search', settings: 'Editor Preferences', toolkit: 'Bedrock Workbench' }[activeSidebarView] || 'Explorer');
+      : ({ explorer: 'Explorer', search: 'Search', settings: 'Preferences', toolkit: 'Bedrock Workbench' }[activeSidebarView] || 'Explorer');
   };
 
   document.querySelectorAll('[data-sidebar-view]').forEach(button => {
@@ -76,15 +76,6 @@
   byId('sidebar-content')?.addEventListener('click', event => {
     if (event.target.closest('#explorer-open-pack')) openFileChooser();
     if (event.target.closest('#explorer-open-cloud')) openCloudBrowser();
-  });
-  window.studioBindExplorerEmptyState = () => {};
-  byId('launch-pack')?.addEventListener('click', openFileChooser);
-  byId('launch-cloud')?.addEventListener('click', () => openCloudBrowser());
-  byId('launch-doctor')?.addEventListener('click', () => {
-    setSidebarView('toolkit');
-    activeToolTab = 'doctor';
-    renderToolTab();
-    runPackDoctor();
   });
 
   // Search covers open text buffers and every filename in the active project tree.
@@ -133,8 +124,8 @@
     const query = (searchInput?.value || '').trim();
     root.replaceChildren();
     if (query.length < 2) {
-      summary.textContent = 'type at least 2 characters';
-      root.innerHTML = '<div class="search-empty">content search checks open text tabs; project filename search checks the full current file tree.</div>';
+      summary.textContent = 'Enter at least two characters.';
+      root.innerHTML = '<div class="search-empty">Search checks open text tabs and file names in the active project.</div>';
       return;
     }
     const needle = query.toLowerCase();
@@ -183,7 +174,7 @@
       });
     }
     summary.textContent = `${matchCount} open-buffer match${matchCount === 1 ? '' : 'es'} · ${filenameCount} filename match${filenameCount === 1 ? '' : 'es'}`;
-    if (!matchCount && !filenameCount) root.innerHTML = '<div class="search-empty">no matches. unopened project file contents are not fetched until you open them.</div>';
+    if (!matchCount && !filenameCount) root.innerHTML = '<div class="search-empty">No matches. Unopened project file contents are not searched.</div>';
   }
   let searchRefreshTimer = null;
   window.refreshStudioSearch = () => {
@@ -389,7 +380,8 @@
     body.replaceChildren();
     const hero = document.createElement('div');
     hero.className = 'tool-hero';
-    hero.innerHTML = `<span class="tool-kicker">pack doctor · ${doctorState.scannedAt ? 'scan complete' : 'ready to scan'}</span><h4>${errors ? `${errors} issue${errors === 1 ? '' : 's'} need attention` : doctorState.scannedAt ? 'pack looks healthier' : 'catch pack-breaking mistakes'}</h4><p>${doctorState.scannedAt ? 'Static checks only. This does not launch Minecraft or validate runtime behavior.' : 'Check manifests, pack IDs, module wiring, and the project file structure.'}</p>`;
+    const headline = errors ? `${errors} error${errors === 1 ? '' : 's'} found` : doctorState.scannedAt ? 'No errors found' : 'Manifest and pack checks';
+    hero.innerHTML = `<span class="tool-kicker">Pack Doctor</span><h4>${headline}</h4><p>Checks manifest structure, UUIDs, modules, and referenced files. It does not run Minecraft.</p>`;
     body.appendChild(hero);
     const scan = document.createElement('button');
     scan.className = 'view-button primary';
@@ -484,11 +476,11 @@
       }
     });
     const hero = document.createElement('div'); hero.className = 'tool-hero';
-    hero.innerHTML = `<span class="tool-kicker">function index</span><h4>${functions.length} command file${functions.length === 1 ? '' : 's'}</h4><p>Browse .mcfunction files and inspect function calls in buffers already open in the editor.</p>`;
+    hero.innerHTML = `<span class="tool-kicker">Function Index</span><h4>${functions.length} command file${functions.length === 1 ? '' : 's'}</h4><p>Lists project .mcfunction files and call references found in open buffers.</p>`;
     body.appendChild(hero);
     if (!functions.length) {
       const empty = document.createElement('div'); empty.className = 'search-empty';
-      empty.textContent = 'No .mcfunction files are visible yet. Open a pack or project, or open a function file directly.';
+      empty.textContent = 'No .mcfunction files in the current workspace or open tabs.';
       body.appendChild(empty); return;
     }
     const list = document.createElement('div');
@@ -513,16 +505,16 @@
     const body = byId('toolkit-body');
     if (!body) return;
     body.innerHTML = `
-      <div class="tool-hero"><span class="tool-kicker">starter builders</span><h4>make the boring files</h4><p>Create editable scratch tabs for common Bedrock pack metadata. Download them from File → Download Active File.</p></div>
-      <label class="view-field"><span>PACK NAME</span><input class="view-input" id="builder-pack-name" value="New Bedrock Pack" maxlength="60"></label>
-      <label class="view-field"><span>NAMESPACE</span><input class="view-input" id="builder-namespace" value="my_pack" maxlength="32"></label>
-      <label class="view-field"><span>PACK TYPE</span><select class="view-select" id="builder-pack-type"><option value="data">Behavior pack</option><option value="resources">Resource pack</option><option value="script">Script behavior pack</option></select></label>
+      <div class="tool-hero"><span class="tool-kicker">File Builder</span><h4>Bedrock pack files</h4><p>Generate a scratch manifest or function registration file. Download scratch files from File → Download Active File.</p></div>
+      <label class="view-field"><span>Pack name</span><input class="view-input" id="builder-pack-name" value="New Bedrock Pack" maxlength="60"></label>
+      <label class="view-field"><span>Namespace</span><input class="view-input" id="builder-namespace" value="my_pack" maxlength="32"></label>
+      <label class="view-field"><span>Pack type</span><select class="view-select" id="builder-pack-type"><option value="data">Behavior pack</option><option value="resources">Resource pack</option><option value="script">Script behavior pack</option></select></label>
       <div class="view-button-row"><button class="view-button primary" id="builder-manifest">Generate manifest.json</button></div>
-      <div class="prefs-card"><h4>Function registration</h4><p>Generate a tick.json entry and its matching functions/tick.mcfunction starter.</p>
-        <label class="view-field"><span>FUNCTION ID</span><input class="view-input" id="builder-function-id" value="my_pack:tick" maxlength="80"></label>
+      <div class="prefs-card"><h4>Function registration</h4><p>Generate a tick.json entry and matching function file.</p>
+        <label class="view-field"><span>Function ID</span><input class="view-input" id="builder-function-id" value="my_pack:tick" maxlength="80"></label>
         <div class="view-button-row"><button class="view-button" id="builder-tick">Generate tick.json</button><button class="view-button" id="builder-function">Generate tick.mcfunction</button></div>
       </div>
-      <div class="builder-info">generated files open as scratch tabs. they are not silently inserted into cloud projects or imported archives.</div>`;
+      <div class="builder-info">Generated files open in scratch tabs. They are not added to the active pack or project.</div>`;
     byId('builder-manifest').addEventListener('click', makeManifest);
     byId('builder-tick').addEventListener('click', makeTickJson);
     byId('builder-function').addEventListener('click', makeTickFunction);

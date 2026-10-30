@@ -201,10 +201,10 @@
       sidebarTitle.textContent = 'Explorer';
       sidebarContent.innerHTML = `
         <div id="explorer-empty" class="explorer-empty">
-          <span class="explorer-empty-mark">//</span><strong>no workspace open</strong>
-          <p>open a local pack or an mcbCode project to browse its files here.</p>
-          <button class="view-button primary" id="explorer-open-pack">Open a pack</button>
-          <button class="view-button" id="explorer-open-cloud">Open mcbCode project</button>
+          <strong>No folder opened</strong>
+          <p>Open a local pack or an mcbCode project to browse its files.</p>
+          <button class="view-button primary" id="explorer-open-pack">Open Pack</button>
+          <button class="view-button" id="explorer-open-cloud">Open mcbCode Project</button>
         </div>
       `;
       if (typeof updateStudioStatus === 'function') updateStudioStatus();

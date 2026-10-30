@@ -118,7 +118,6 @@
     const popupTitle = document.getElementById('account-popup-title');
     const popupBody = document.getElementById('account-popup-body');
     const popupBtn = document.getElementById('account-popup-btn');
-    const loginBtn = document.getElementById('btn-login');
     const accountIconImg = document.querySelector('#account-icon img');
 
     if (currentUser) {
@@ -131,7 +130,6 @@
         currentUser = null;
         updateAuthUI();
       };
-      loginBtn.textContent = 'Account';
       accountIconImg.src = currentUser.pfp_url || 'https://mcbcode.com/img/icons/blank-transparent.png';
     } else {
       popupTitle.textContent = 'Account';
@@ -141,7 +139,6 @@
       popupBtn.onclick = () => {
         window.location.href = 'https://mcbcode.com/account?redirectto=https://studio.mcbcode.com';
       };
-      loginBtn.textContent = 'Login';
       accountIconImg.src = 'https://mcbcode.com/img/icons/blank-transparent.png';
     }
   }
