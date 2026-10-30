@@ -53,92 +53,71 @@
   }
 
   // ===== mcfunction highlighting =====
-  // uses applyHighlighting() from highlight.js (which uses grammar.js) to color each token
-
-  // a tiny do-nothing mode so codemirror doesnt complain about an unknown "mcfunction" mode
+  // local tokenization avoids relying on cross-origin grammar JSON requests
   CodeMirror.defineMode('mcfunction', function () {
-    return { token: function (stream) { stream.skipToEnd(); return null; } };
+    return {
+      startState: () => ({ command: null, argIndex: 0, awaitingNestedCommand: false, replaceItemKind: null }),
+      token: function (stream, state) {
+        if (stream.sol()) {
+          state.command = null;
+          state.argIndex = 0;
+          state.awaitingNestedCommand = false;
+          state.replaceItemKind = null;
+        }
+        if (stream.eatSpace()) return null;
+        if (stream.peek() === '#') {
+          stream.skipToEnd();
+          return 'comment';
+        }
+
+        const token = stream.match(/"(?:\\.|[^"\\])*"?|'(?:\\.|[^'\\])*'?|[^\s]+/)[0];
+        if (token[0] === '"' || token[0] === "'") return 'string';
+        if (!state.command || state.awaitingNestedCommand) {
+          state.command = token.toLowerCase();
+          state.argIndex = 0;
+          state.awaitingNestedCommand = false;
+          return 'keyword mcf-command';
+        }
+
+        const command = state.command;
+        const value = token.toLowerCase();
+        if (command === 'execute' && value === 'run') {
+          state.awaitingNestedCommand = true;
+          return 'keyword';
+        }
+
+        const argIndex = state.argIndex++;
+        if (command === 'replaceitem' && argIndex === 0) state.replaceItemKind = value;
+        if (/^@[aeprsv](?:\[[^\]]*\])?$/i.test(token)) return 'atom mcf-selector';
+        if (argIndex === 0 && mcfunctionTargetCommands.has(command) && /^[A-Za-z0-9_]{1,36}$/.test(token)) return 'atom mcf-selector';
+        if (command === 'replaceitem' && state.replaceItemKind === 'entity' && argIndex === 1 && /^[A-Za-z0-9_]{1,36}$/.test(token)) return 'atom mcf-selector';
+        if (/^(?:[~^]-?\d*\.?\d*|-?\d+\.?\d*)(?:[bBsSlLfFdD])?$/.test(token)) return 'number';
+
+        const isItemArgument = (command === 'give' || command === 'clear') && argIndex === 1 ||
+          command === 'replaceitem' && (state.replaceItemKind === 'block' && argIndex >= 6 || state.replaceItemKind === 'entity' && argIndex >= 4);
+        if (/^[a-z0-9_]+:[a-z0-9_./-]+$/i.test(token) || isItemArgument) return 'string mcf-item';
+        if (/^(true|false)$/i.test(token)) return 'atom mcf-argument';
+        return 'mcf-argument';
+      }
+    };
   });
 
-  // highlight.js calls window.updateErrorDots(listOfLineNumbers) after it highlights.
-  // we remember which editor we are highlighting so the dots go in the right tab.
-  let mcfTargetEditor = null;
-
-  window.updateErrorDots = function (errorLines) {
-    const cm = mcfTargetEditor;
-    if (!cm) return;
+  // called when a .mcfunction tab opens, then again after edits
+  function updateMcfErrorGutter(cm) {
+    if (!mcfunctionEditors.has(cm)) return;
     cm.clearGutter('mcf-error-gutter');
-
-    // lines grammar.js flagged (1-based, so subtract 1) + lines with unbalanced brackets/quotes
-    const badLines = new Set(errorLines.map(n => n - 1));
     for (let i = 0; i < cm.lineCount(); i++) {
-      if (checkMcfunctionLine(cm.getLine(i))) badLines.add(i);
-    }
-
-    badLines.forEach(i => {
+      const issue = checkMcfunctionLine(cm.getLine(i) || '');
+      if (!issue) continue;
       const marker = document.createElement('div');
       marker.className = 'mcf-gutter-marker';
-      marker.title = checkMcfunctionLine(cm.getLine(i) || '') || "something on this line doesn't match the command grammar";
+      marker.title = issue;
       marker.textContent = '●';
       cm.setGutterMarker(i, 'mcf-error-gutter', marker);
-    });
-  };
-
-  function unescapeHtml(s) {
-    return s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-  }
-
-  // called when a .mcfunction tab opens, then again (debounced) on every edit
-  async function updateMcfErrorGutter(cm) {
-    if (!mcfunctionEditors.has(cm)) return;           // tab was closed
-    if (typeof applyHighlighting !== 'function') return; // highlight.js didnt load
-
-    const text = cm.getValue();
-    mcfTargetEditor = cm;
-    let html;
-    try {
-      html = await applyHighlighting(text);
-    } catch (e) {
-      console.error('mcfunction highlight failed:', e);
-      mcfTargetEditor = null;
-      return;
     }
-    mcfTargetEditor = null;
-
-    // if the user kept typing (or closed the tab) while we worked, skip this result
-    if (!mcfunctionEditors.has(cm) || cm.getValue() !== text) return;
-
-    const htmlLines = html.split('\n');
-    const spanRe = /<span class="([^"]*)"[^>]*>([\s\S]*?)<\/span>/g;
-
-    cm.operation(() => {
-      // remove the colors from the last pass
-      (cm._mcfMarks || []).forEach(m => m.clear());
-      const marks = [];
-
-      for (let line = 0; line < htmlLines.length; line++) {
-        let ch = 0;
-        let lastEnd = 0;
-        spanRe.lastIndex = 0;
-        let m;
-        while ((m = spanRe.exec(htmlLines[line])) !== null) {
-          // text between spans is plain whitespace, just move past it
-          ch += unescapeHtml(htmlLines[line].slice(lastEnd, m.index)).length;
-          const len = unescapeHtml(m[2]).length;
-          const cls = m[1].split(' ')[0];
-          if (len > 0) {
-            marks.push(cm.markText({ line, ch }, { line, ch: ch + len }, { className: cls }));
-          }
-          ch += len;
-          lastEnd = spanRe.lastIndex;
-        }
-      }
-      cm._mcfMarks = marks;
-    });
   }
 
-  // grammar.js calls this after it finishes downloading a command's grammar file,
-  // so everything gets re-colored with the new info. debounced so it doesnt spam.
+  // grammar.js calls this after a command grammar request to refresh any open completions.
   function renderHighlight() {
     clearTimeout(window._mcfRehighlightTimer);
     window._mcfRehighlightTimer = setTimeout(() => {
@@ -151,6 +130,7 @@
 
   const mcfunctionCommandNames = `ability aimassist allowlist camera camerashake changesetting clear clearspawnpoint clone controlscheme damage daylock deop dialogue difficulty effect enchant event execute fill fog function gamemode gamerule give help hud inputpermission kick kill list locate loot me mobevent msg music op particle permission playanimation playsound recipe reload replaceitem ride say schedule scoreboard script scriptevent setblock setmaxplayers setworldspawn spawnpoint spreadplayers stopsound structure summon tag teleport tell tellraw testfor testforblock testforblocks tickingarea time title titleraw toggledownfall weather wb worldbuilder xp w tp`.split(/\s+/);
   const mcfunctionSelectors = ['@a', '@e', '@p', '@r', '@s', '@v'];
+  const mcfunctionTargetCommands = new Set(['clear', 'damage', 'effect', 'enchant', 'give', 'kill', 'tag', 'teleport', 'tell', 'tellraw', 'title', 'tp', 'xp']);
   const mcfunctionGrammarLoads = new Set();
 
   function mcfPatternsFor(commandData) {
@@ -194,6 +174,32 @@
     if (expected.type === 'target') return mcfunctionSelectors;
     if (!Array.isArray(expected.options)) return [];
     return expected.options.filter(option => typeof option === 'string' && option !== '*' && option.length > 0);
+  }
+
+  function mcfunctionFallbackSuggestions(command, args) {
+    if ((mcfunctionTargetCommands.has(command) || command === 'spawnpoint') && args.length === 0) return mcfunctionSelectors;
+    if (command === 'execute') {
+      if (!args.length) return ['align', 'anchored', 'as', 'at', 'facing', 'if', 'in', 'on', 'positioned', 'rotated', 'run', 'summon', 'unless'];
+      const last = args[args.length - 1].toLowerCase();
+      if (['as', 'at', 'on', 'summon'].includes(last)) return mcfunctionSelectors;
+      if (['as', 'at', 'positioned', 'rotated', 'facing', 'if', 'in', 'on', 'unless'].includes(last)) return ['align', 'anchored', 'as', 'at', 'facing', 'if', 'in', 'on', 'positioned', 'rotated', 'run', 'summon', 'unless'];
+    }
+    const firstArgOptions = {
+      difficulty: ['peaceful', 'easy', 'normal', 'hard'],
+      gamemode: ['survival', 'creative', 'adventure', 'spectator'],
+      weather: ['clear', 'rain', 'thunder'],
+      daylock: ['true', 'false'],
+      toggledownfall: ['true', 'false']
+    };
+    if (args.length === 0 && firstArgOptions[command]) return firstArgOptions[command];
+    if (command === 'time') {
+      if (args.length === 0) return ['add', 'query', 'set'];
+      if (args.length === 1 && args[0].toLowerCase() === 'set') return ['day', 'noon', 'night', 'sunrise', 'sunset'];
+    }
+    if (command === 'title' && args.length === 1) return ['actionbar', 'clear', 'reset', 'subtitle', 'title', 'times'];
+    if (command === 'setblock' && args.length >= 4) return ['destroy', 'keep', 'replace'];
+    if (command === 'fill' && args.length >= 6) return ['destroy', 'hollow', 'keep', 'outline', 'replace'];
+    return [];
   }
 
   function requestMcfunctionGrammar(command) {
@@ -246,9 +252,9 @@
         if (commandData) {
           const expected = mcfExpectedAfter(commandData, completedArgs);
           suggestions = [...new Set(expected.flatMap(mcfSuggestionsForExpected))];
-        } else {
-          requestMcfunctionGrammar(command);
         }
+        if (!suggestions.length) suggestions = mcfunctionFallbackSuggestions(command, completedArgs);
+        if (!commandData) requestMcfunctionGrammar(command);
       }
     }
 
