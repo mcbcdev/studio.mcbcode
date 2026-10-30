@@ -117,6 +117,30 @@ button.activity-icon:focus-visible {
   color: var(--text-dim);
   line-height: 1.5;
 }
+.search-replace-summary {
+  margin-top: 10px;
+  padding: 8px;
+  border-left: 2px solid var(--accent);
+  color: var(--text-main);
+  background: var(--bg-2);
+  line-height: 1.45;
+}
+.search-replace-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 10px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.search-replace-row strong {
+  color: var(--text-main);
+  font-size: 11px;
+  font-weight: 500;
+}
 .view-field {
   display: block;
   margin: 10px 0;
@@ -362,8 +386,127 @@ button.activity-icon:focus-visible {
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
+.explorer-empty {
+  padding: 12px 20px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.tools-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.58);
+}
+.tools-overlay.show {
+  display: flex;
+}
+#tools-dialog {
+  display: flex;
+  width: min(560px, 94vw);
+  height: min(680px, 86vh);
+  min-height: 300px;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text-body);
+  background: var(--bg-4);
+  box-shadow: 0 14px 48px rgba(0, 0, 0, 0.48);
+}
+.tools-header {
+  display: flex;
+  flex: 0 0 42px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-2);
+}
+.tools-header h2 {
+  margin: 0;
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 500;
+}
+.tools-header button {
+  border: 0;
+  color: var(--text-dim);
+  background: transparent;
+  font: inherit;
+  font-size: 18px;
+  cursor: pointer;
+}
+.tools-header button:hover {
+  color: var(--text-main);
+}
+.bedrock-geometry-preview {
+  display: flex;
+  height: 230px;
+  min-height: 160px;
+  flex: 0 0 230px;
+  flex-direction: column;
+  overflow: hidden;
+  border-top: 1px solid var(--border-strong);
+  background: var(--bg-3);
+}
+.bedrock-geometry-preview[hidden] {
+  display: none;
+}
+.bedrock-geometry-preview header {
+  display: flex;
+  min-height: 30px;
+  flex: 0 0 30px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-sub);
+  background: var(--bg-2);
+  font-size: 10px;
+}
+.bedrock-geometry-preview header button {
+  padding: 2px 7px;
+  border: 1px solid var(--border-strong);
+  color: var(--text-sub);
+  background: var(--bg-5);
+  font: inherit;
+  cursor: pointer;
+}
+.bedrock-geometry-preview header button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.bedrock-geometry-preview canvas {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  flex: 1;
+}
+.geometry-preview-note {
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  background: var(--bg-2);
+  font-size: 10px;
+  line-height: 1.35;
+}
+#tools-dialog > .panel-tabs {
+  flex: 0 0 auto;
+}
+#tools-dialog > .toolkit-body {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+}
 @media (max-width: 640px) {
   #output-panel { flex-basis: 150px; }
   .panel-controls { padding: 8px; }
   .toolkit-body { padding: 8px; }
+  #tools-dialog { height: 90vh; }
+  .bedrock-geometry-preview { height: 190px; flex-basis: 190px; }
 }
