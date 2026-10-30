@@ -1986,7 +1986,19 @@
       <div class="menu-dropdown">
         <div data-action="toggle-sidebar">Toggle Sidebar</div>
         <div data-action="toggle-console">Toggle Console</div>
+        <div data-action="open-quick-open">Quick Open</div>
+        <div data-action="open-command-palette">Command Palette</div>
+        <div data-action="toggle-geometry-preview">Preview Geometry</div>
         <div data-action="toggle-wiki">Bedrock Wiki</div>
+      </div>
+    </div>
+
+    <div class="menu-item" data-menu="tools">
+      Tools
+      <div class="menu-dropdown">
+        <div data-action="open-pack-doctor">Pack Doctor</div>
+        <div data-action="open-function-index">Function Index</div>
+        <div data-action="open-file-builder">File Builder</div>
       </div>
     </div>
 
@@ -2025,10 +2037,7 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H4a1 1 0 0 0-1 1v5h2a2 2 0 1 1 0 4H3v6a1 1 0 0 0 1 1h5v-2a2 2 0 1 1 4 0v2h6a1 1 0 0 0 1-1v-5h-2a2 2 0 1 1 0-4h2V4a1 1 0 0 0-1-1h-5v2a2 2 0 1 1-4 0V3Z"></path></svg>
       </button>
       <button class="activity-icon" type="button" data-sidebar-view="settings" aria-label="Editor Preferences" aria-controls="settings-panel" aria-pressed="false" title="Editor Preferences">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.7 2.9-.2-.1a1.7 1.7 0 0 0-1.8-.1 1.7 1.7 0 0 0-1 1.5v.2h-3.4v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.1l-.2.1L7 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H5.7v-3.4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9L7 7.6l1.7-2.9.2.1a1.7 1.7 0 0 0 1.8.1 1.7 1.7 0 0 0 1-1.5v-.2h3.4v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.1l.2-.1 1.7 2.9-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2V14h-.2a1.7 1.7 0 0 0-1.5 1Z"></path></svg>
-      </button>
-      <button class="activity-icon" type="button" data-sidebar-view="toolkit" aria-label="Bedrock Workbench" aria-controls="toolkit-panel" aria-pressed="false" title="Bedrock Workbench">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8.5 7-5 5 5 5M15.5 7l5 5-5 5M13.5 5l-3 14"></path></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.7 2.9-.2-.1a1.7 1.7 0 0 0-1.8-.1 1.7 1.7 0 0 0-1 1.5v.2h-3.4v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.1l-.2.1L7 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H5.7v-3.4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9L7 7.6l1.7-2.9.2.1a1.7 1.7 0 0 0 1.8.1l1-1.5v-.2h3.4v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.1l.2-.1 1.7 2.9-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2V14h-.2a1.7 1.7 0 0 0-1.5 1Z"></path></svg>
       </button>
 
       <!-- inline svg since there's no themed png asset for this one yet -->
@@ -2058,17 +2067,20 @@
       <div id="sidebar">
         <h3 id="sidebar-title">Explorer</h3>
         <div id="sidebar-content">
-          <div class="file-item" data-file="tab1" data-label="manifest.json" data-content="// manifest.json content goes here">manifest.json</div>
-          <div class="file-item" data-file="tab2" data-label="main.js" data-content="// main.js content goes here">main.js</div>
-          <div class="file-item" data-file="tab3" data-label="README.md" data-content="# README.md content goes here">README.md</div>
-          <!-- once a project file is opened from the cloud, this whole block gets replaced
-               by a real folder tree built from that project's files (see renderSidebarTree) -->
+          <div class="explorer-empty">no files</div>
         </div>
         <section id="search-panel" class="sidebar-view" hidden>
           <div class="panel-controls">
             <label for="workspace-search">Search workspace</label>
             <input id="workspace-search" type="search" placeholder="Search open buffers and file names" autocomplete="off">
+            <label class="check-field"><input id="workspace-search-regex" type="checkbox"><span>Regular expression</span></label>
+            <label class="check-field"><input id="workspace-search-case" type="checkbox"><span>Match case</span></label>
+            <button id="workspace-search-all" class="view-button" type="button">Search all project files</button>
+            <label class="view-field" for="workspace-search-replace"><span>Replace in project</span><input id="workspace-search-replace" class="view-input" type="text" placeholder="Replacement text"></label>
+            <button id="workspace-search-preview-button" class="view-button" type="button" disabled>Preview Replace</button>
             <div id="search-summary" class="panel-summary">Search open files and project paths.</div>
+            <div id="workspace-search-progress" class="panel-summary" aria-live="polite"></div>
+            <div id="workspace-search-replace-preview"></div>
           </div>
           <div id="search-results" class="search-results"></div>
         </section>
@@ -2081,18 +2093,31 @@
             <label class="check-field"><input id="pref-soft-wrap" type="checkbox"><span>Wrap long lines</span></label>
             <button id="pref-reset" class="view-button" type="button">Reset Preferences</button>
             <p class="panel-note">Preferences are stored in this browser and apply to open editor tabs.</p>
+            <div class="prefs-card">
+              <h4>Bedrock authoring profile</h4>
+              <label class="view-field" for="bedrock-target-version"><span>Target Minecraft version</span><input id="bedrock-target-version" class="view-input" type="text" maxlength="20" placeholder="1.21.0"></label>
+              <label class="view-field" for="bedrock-experiments"><span>Experimental toggles</span><input id="bedrock-experiments" class="view-input" type="text" maxlength="180" placeholder="comma-separated, optional"></label>
+              <p class="panel-note">Saved in this browser for the active workspace. This does not edit pack files or replace in-game testing.</p>
+            </div>
           </div>
-        </section>
-        <section id="toolkit-panel" class="sidebar-view" hidden>
-          <div class="panel-tabs" role="tablist" aria-label="Bedrock tools">
-            <button class="panel-tab active" type="button" data-tool-tab="doctor" role="tab" aria-selected="true">Doctor</button>
-            <button class="panel-tab" type="button" data-tool-tab="functions" role="tab" aria-selected="false">Functions</button>
-            <button class="panel-tab" type="button" data-tool-tab="builder" role="tab" aria-selected="false">Builder</button>
-          </div>
-          <div id="toolkit-body" class="toolkit-body"></div>
         </section>
       </div>
       <div id="sidebar-resizer"></div>
+    </div>
+
+    <div id="tools-overlay" class="tools-overlay" aria-hidden="true">
+      <section id="tools-dialog" role="dialog" aria-modal="true" aria-labelledby="tools-title">
+        <header class="tools-header">
+          <h2 id="tools-title">Bedrock Tools</h2>
+          <button id="tools-close" type="button" aria-label="Close tools">&times;</button>
+        </header>
+        <div class="panel-tabs" role="tablist" aria-label="Bedrock tools">
+          <button class="panel-tab active" type="button" data-tool-tab="doctor" role="tab" aria-selected="true">Doctor</button>
+          <button class="panel-tab" type="button" data-tool-tab="functions" role="tab" aria-selected="false">Functions</button>
+          <button class="panel-tab" type="button" data-tool-tab="builder" role="tab" aria-selected="false">Builder</button>
+        </div>
+        <div id="toolkit-body" class="toolkit-body"></div>
+      </section>
     </div>
 
     <!-- ===== editor area: tabs + code ===== -->
@@ -2159,6 +2184,8 @@
         </div>
       </div>
       <div class="shortcuts-list">
+        <div class="shortcut-row"><span>Quick Open</span><span class="keys" data-win="Ctrl + P" data-mac="Cmd + P">Ctrl + P</span></div>
+        <div class="shortcut-row"><span>Command Palette</span><span class="keys" data-win="Ctrl + Shift + P" data-mac="Cmd + Shift + P">Ctrl + Shift + P</span></div>
         <div class="shortcut-row"><span>Select next occurrence (multi-cursor)</span><span class="keys" data-win="Ctrl + D" data-mac="Cmd + D">Ctrl + D</span></div>
         <div class="shortcut-row"><span>Add cursor above / below</span><span class="keys" data-win="Ctrl + Alt + Up / Down" data-mac="Cmd + Option + Up / Down">Ctrl + Alt + Up / Down</span></div>
         <div class="shortcut-row"><span>Add cursor at click</span><span class="keys" data-win="Alt + Click" data-mac="Option + Click">Alt + Click</span></div>
@@ -2311,5 +2338,9 @@
   <script src="./js/local-files.js"></script>
   <script src="./js/media-viewers.js"></script>
   <script src="./js/studio-workbench.js"></script>
+  <script src="./js/command-palette.js"></script>
+  <script src="./js/bedrock-intelligence.js"></script>
+  <script src="./js/project-search.js"></script>
+  <script src="./js/geometry-preview.js"></script>
 </body>
 </html>

@@ -84,6 +84,7 @@
       cloudNav = { code, name, files: data.files, stack: [null] }; // stack of parent_id levels, starting at root
       currentProject = { code, name, files: data.files }; // tracked separately from cloudNav so the sidebar tree
                                                              // stays put even after this browser popup closes
+      window.studioSyncBedrockProfile?.();
       renderFolder();
       window.refreshStudioSearch?.();
     } catch (e) {
@@ -173,9 +174,7 @@
   }
 
   // ================= sidebar: real project file tree =================
-  // once any file from a project has been opened, the sidebar swaps its demo items
-  // for the rest of that project's real files/folders. clicking a folder expands it
-  // in place; clicking a file opens/switches to its tab, same as the cloud browser.
+  // show the real project tree when available; otherwise list only actual open tabs.
   let currentProject = null; // { code, name, files } — set by openProject() above
   const collapsedFolders = new Set(); // folder ids the user has manually collapsed
 
@@ -184,7 +183,29 @@
     const sidebarTitle = document.getElementById('sidebar-title');
 
     if (!currentProject) {
-      // no project open yet — leave the default demo file-items alone
+      sidebarTitle.textContent = 'Explorer';
+      sidebarContent.replaceChildren();
+      const tabs = [...document.querySelectorAll('#tab-bar .tab')];
+      if (!tabs.length) {
+        const empty = document.createElement('div');
+        empty.className = 'explorer-empty';
+        empty.textContent = 'no files';
+        sidebarContent.appendChild(empty);
+      } else {
+        tabs.forEach(tab => {
+          const id = tab.dataset.tab;
+          const label = tab.querySelector('.tab-label')?.textContent || 'untitled';
+          const row = document.createElement('div');
+          row.className = 'file-item' + (tab.classList.contains('active') ? ' active' : '');
+          row.dataset.file = id;
+          row.dataset.label = label;
+          row.textContent = label;
+          row.addEventListener('click', () => activateTab(id));
+          sidebarContent.appendChild(row);
+        });
+      }
+      window.studioRefreshSidebarTitle?.();
+      window.updateStudioStatus?.();
       return;
     }
 
@@ -199,24 +220,27 @@
     backRow.innerHTML = `<img src="https://mcbcode.com/img/icons/folderup.png" alt=""><span>Close Project</span>`;
     backRow.addEventListener('click', () => {
       currentProject = null;
+      window.studioSyncBedrockProfile?.();
       collapsedFolders.clear();
       sidebarTitle.textContent = 'Explorer';
       window.studioRefreshSidebarTitle?.();
       window.updateStudioStatus?.();
       window.refreshStudioSearch?.();
-      sidebarContent.innerHTML = `
-        <div class="file-item" data-file="tab1" data-label="manifest.json" data-content="// manifest.json content goes here">manifest.json</div>
-        <div class="file-item" data-file="tab2" data-label="main.js" data-content="// main.js content goes here">main.js</div>
-        <div class="file-item" data-file="tab3" data-label="README.md" data-content="# README.md content goes here">README.md</div>
-      `;
-      attachDemoFileItemEvents();
+      renderSidebarTree();
     });
     sidebarContent.appendChild(backRow);
 
     const treeRoot = document.createElement('div');
     sidebarContent.appendChild(treeRoot);
     buildTreeLevel(treeRoot, null, 0);
+    if (!currentProject.files.some(file => file.type === 'file')) {
+      const empty = document.createElement('div');
+      empty.className = 'explorer-empty';
+      empty.textContent = 'no files';
+      sidebarContent.appendChild(empty);
+    }
   }
+  window.renderStudioExplorer = renderSidebarTree;
 
   function buildTreeLevel(container, parentId, depth) {
     const children = currentProject.files
@@ -301,12 +325,4 @@
     });
   }
 
-  // the demo file-items need their click handler re-attached every time they're
-  // rebuilt (e.g. after closing a project back to the default state)
-  function attachDemoFileItemEvents() {
-    document.querySelectorAll('#sidebar-content .file-item').forEach(file => {
-      file.addEventListener('click', () => {
-        openTab(file.dataset.file, file.dataset.label, file.dataset.content);
-      });
-    });
-  }
+  renderSidebarTree();

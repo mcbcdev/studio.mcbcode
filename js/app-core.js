@@ -50,6 +50,24 @@
   document.querySelectorAll('[data-action="toggle-console"]').forEach(el => {
     el.addEventListener('click', () => window.toggleStudioOutput?.());
   });
+  document.querySelectorAll('[data-action="open-command-palette"]').forEach(el => {
+    el.addEventListener('click', () => window.studioOpenCommandPalette?.());
+  });
+  document.querySelectorAll('[data-action="open-quick-open"]').forEach(el => {
+    el.addEventListener('click', () => window.studioOpenQuickOpen?.());
+  });
+  document.querySelectorAll('[data-action="toggle-geometry-preview"]').forEach(el => {
+    el.addEventListener('click', () => window.toggleBedrockGeometryPreview?.());
+  });
+  document.querySelectorAll('[data-action="open-pack-doctor"]').forEach(el => {
+    el.addEventListener('click', () => window.openStudioToolkit?.('doctor'));
+  });
+  document.querySelectorAll('[data-action="open-function-index"]').forEach(el => {
+    el.addEventListener('click', () => window.openStudioToolkit?.('functions'));
+  });
+  document.querySelectorAll('[data-action="open-file-builder"]').forEach(el => {
+    el.addEventListener('click', () => window.openStudioToolkit?.('builder'));
+  });
   document.querySelector('[data-action="new-file"]').addEventListener('click', () => {
     const id = nextDynamicId();
     openTab(id, 'untitled', '');
@@ -169,6 +187,7 @@
     });
     if (typeof setActiveTreeFileByTabId === 'function') setActiveTreeFileByTabId(id);
     updateWelcomeVisibility();
+    if (typeof currentProject === 'undefined' || !currentProject) window.renderStudioExplorer?.();
 
     // CodeMirror sizes itself based on its container at creation time, so a fresh
     // instance mounted while its tab was hidden renders broken until this is called

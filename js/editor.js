@@ -613,8 +613,11 @@
 
       cm.getWrapperElement().style.fontSize = `${preferences.fontSize || 14}px`;
       editors[id] = { cm, saveId: saveId || null, fileId: fileId || null, projectCode: projectCode || null, localArchiveFile: localArchiveFile || null, dirty: false };
+      window.studioBedrockEditorReady?.(id, cm, label);
+      window.studioGeometryEditorReady?.(id, cm, label, panel);
       cm.on('change', () => {
         markDirty(id, true);
+        window.studioInvalidateProjectSearch?.();
         window.refreshStudioSearch?.();
       });
 
@@ -636,6 +639,7 @@
     activateTab(id);
     window.refreshStudioSearch?.();
     window.updateStudioStatus?.();
+    window.renderStudioExplorer?.();
   }
 
   // generates a unique tab id for files opened outside the sidebar (local files, new blank files, cloud files)
@@ -728,12 +732,13 @@
 
       if (newName === originalName) return;
 
-      // keep the sidebar demo file entry (if any) in sync with the new name
+      // keep the open-tab Explorer label in sync with the renamed tab
       const fileItem = document.querySelector(`.file-item[data-file="${id}"]`);
       if (fileItem) {
         fileItem.textContent = newName;
         fileItem.dataset.label = newName;
       }
+      window.renderStudioExplorer?.();
 
       const entry = editors[id];
       if (!entry || !entry.fileId || !entry.projectCode) return; // not a cloud file, local rename only
@@ -797,6 +802,7 @@
       if (entry) {
         mcfunctionEditors.delete(entry.cm);
         clearTimeout(entry.cm._mcfGutterTimer);
+        entry.geometryPreview?.dispose?.();
       }
       if (typeof disposeMediaTab === 'function') disposeMediaTab(id);
       delete editors[id];
@@ -813,6 +819,7 @@
       }
       window.refreshStudioSearch?.();
       window.updateStudioStatus?.();
+      window.renderStudioExplorer?.();
     });
   }
 

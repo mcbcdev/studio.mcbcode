@@ -37,10 +37,10 @@
   function setSidebarView(view) {
     activeSidebarView = view;
     byId('sidebar-wrap')?.classList.remove('collapsed');
-    const labels = { explorer: 'Explorer', search: 'Search', settings: 'Preferences', toolkit: 'Bedrock Workbench' };
+    const labels = { explorer: 'Explorer', search: 'Search', settings: 'Preferences' };
     const content = byId('sidebar-content');
     if (content) content.hidden = view !== 'explorer';
-    ['search-panel', 'settings-panel', 'toolkit-panel'].forEach(id => {
+    ['search-panel', 'settings-panel'].forEach(id => {
       const pane = byId(id);
       if (pane) pane.hidden = id !== `${view}-panel`;
     });
@@ -50,7 +50,7 @@
     });
     const title = byId('sidebar-title');
     if (title) title.textContent = view === 'explorer' && typeof currentProject !== 'undefined' && currentProject
-      ? currentProject.name : ({ explorer: 'Explorer', search: 'Workspace Search', settings: 'Editor Preferences', toolkit: 'Bedrock Workbench' }[view] || 'Explorer');
+      ? currentProject.name : ({ explorer: 'Explorer', search: 'Workspace Search', settings: 'Editor Preferences' }[view] || 'Explorer');
     const statusView = byId('studio-status-view');
     if (statusView) statusView.textContent = labels[view] || view;
     if (view === 'search') {
@@ -58,14 +58,13 @@
       setTimeout(() => byId('workspace-search')?.focus(), 0);
     }
     if (view === 'settings') syncPreferenceControls();
-    if (view === 'toolkit') renderToolTab();
   }
   window.studioRefreshSidebarTitle = () => {
     const title = byId('sidebar-title');
     if (!title) return;
     title.textContent = activeSidebarView === 'explorer' && typeof currentProject !== 'undefined' && currentProject
       ? currentProject.name
-      : ({ explorer: 'Explorer', search: 'Search', settings: 'Preferences', toolkit: 'Bedrock Workbench' }[activeSidebarView] || 'Explorer');
+      : ({ explorer: 'Explorer', search: 'Search', settings: 'Preferences' }[activeSidebarView] || 'Explorer');
   };
 
   document.querySelectorAll('[data-sidebar-view]').forEach(button => {
@@ -183,6 +182,40 @@
   };
 
   // Editor preferences are deliberately device-local and apply immediately to every open tab.
+  const BEDROCK_PROFILE_KEY = 'studio_bedrock_profile_v1';
+  function bedrockProfileScope() {
+    const project = typeof currentProject !== 'undefined' ? currentProject : null;
+    if (project?.code) return `cloud:${project.code}`;
+    if (project?.localArchive) return `archive:${project.name || project.workspace?.filename || 'pack'}`;
+    return 'default';
+  }
+  function readBedrockProfile() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(`${BEDROCK_PROFILE_KEY}:${bedrockProfileScope()}`) || '{}');
+      return { targetVersion: String(saved.targetVersion || ''), experiments: String(saved.experiments || '') };
+    } catch (_) { return { targetVersion: '', experiments: '' }; }
+  }
+  function syncBedrockProfileControls() {
+    const profile = readBedrockProfile();
+    window.studioBedrockProfile = profile;
+    const version = byId('bedrock-target-version');
+    const experiments = byId('bedrock-experiments');
+    if (version) version.value = profile.targetVersion;
+    if (experiments) experiments.value = profile.experiments;
+  }
+  window.studioSyncBedrockProfile = syncBedrockProfileControls;
+  function saveBedrockProfile() {
+    const profile = {
+      targetVersion: byId('bedrock-target-version')?.value.trim() || '',
+      experiments: byId('bedrock-experiments')?.value.trim() || ''
+    };
+    window.studioBedrockProfile = profile;
+    try { localStorage.setItem(`${BEDROCK_PROFILE_KEY}:${bedrockProfileScope()}`, JSON.stringify(profile)); }
+    catch (error) { console.warn('Could not save the Bedrock authoring profile:', error); }
+  }
+  byId('bedrock-target-version')?.addEventListener('input', saveBedrockProfile);
+  byId('bedrock-experiments')?.addEventListener('input', saveBedrockProfile);
+
   function syncPreferenceControls() {
     const prefs = window.studioPreferences;
     const font = byId('pref-font-size');
@@ -192,6 +225,7 @@
     byId('pref-tab-size').value = String(prefs.tabSize);
     byId('pref-line-numbers').checked = prefs.lineNumbers;
     byId('pref-soft-wrap').checked = prefs.softWrap;
+    syncBedrockProfileControls();
   }
 
   function applyPreferences() {
@@ -240,6 +274,7 @@
     syncPreferenceControls();
   });
   syncPreferenceControls();
+  syncBedrockProfileControls();
 
   // File tree helpers keep imported archives browser-local and fetch cloud file bodies only on demand.
   function getOpenEntry(file) {
@@ -519,19 +554,51 @@
     const body = byId('toolkit-body');
     if (!body) return;
     body.innerHTML = `
-      <div class="tool-hero"><span class="tool-kicker">File Builder</span><h4>Bedrock pack files</h4><p>Generate a scratch manifest or function registration file. Use File &gt; Download Active File to save the selected tab.</p></div>
+      <div class="tool-hero"><span class="tool-kicker">File Builder</span><h4>Bedrock pack files</h4><p>Generate a manifest or function registration file.</p></div>
       <label class="view-field"><span>Pack name</span><input class="view-input" id="builder-pack-name" value="New Bedrock Pack" maxlength="60"></label>
       <label class="view-field"><span>Namespace</span><input class="view-input" id="builder-namespace" value="my_pack" maxlength="32"></label>
       <label class="view-field"><span>Pack type</span><select class="view-select" id="builder-pack-type"><option value="data">Behavior pack</option><option value="resources">Resource pack</option><option value="script">Script behavior pack</option></select></label>
+      <label class="view-field" id="builder-target-row" hidden><span>Target pack in this .mcaddon</span><select class="view-select" id="builder-target-pack"></select></label>
       <div class="view-button-row"><button class="view-button primary" id="builder-manifest">Generate manifest.json</button></div>
       <div class="prefs-card"><h4>Function registration</h4><p>Generate <code>functions/tick.json</code> and the referenced function file under <code>functions/</code>.</p>
         <label class="view-field"><span>Function ID</span><input class="view-input" id="builder-function-id" value="my_pack:tick" maxlength="80"></label>
         <div class="view-button-row"><button class="view-button" id="builder-tick">Generate functions/tick.json</button><button class="view-button" id="builder-function">Generate function file</button></div>
       </div>
-      <div class="builder-info">Generated files open in scratch tabs. They are not added to the active pack or project. After downloading, place function files under <code>functions/</code>.</div>`;
+      <div class="builder-info">Generated files will be added to an imported pack when a destination is available; otherwise they open as scratch tabs.</div>`;
     byId('builder-manifest').addEventListener('click', makeManifest);
     byId('builder-tick').addEventListener('click', makeTickJson);
     byId('builder-function').addEventListener('click', makeTickFunction);
+    syncBuilderTarget();
+  }
+
+  function syncBuilderTarget() {
+    const row = byId('builder-target-row');
+    const select = byId('builder-target-pack');
+    if (!row || !select) return;
+    const workspace = typeof currentProject !== 'undefined' && currentProject?.localArchive ? currentProject.workspace : null;
+    const nestedPacks = workspace?.extension === 'mcaddon' ? workspace.nestedPacks || [] : [];
+    row.hidden = nestedPacks.length <= 1;
+    select.replaceChildren();
+    nestedPacks.forEach(pack => {
+      const option = document.createElement('option');
+      option.value = pack.path;
+      option.textContent = pack.path;
+      select.appendChild(option);
+    });
+  }
+
+  async function createOrOpenBuiltFile(label, content) {
+    if (typeof currentProject !== 'undefined' && currentProject?.localArchive && typeof window.createStudioArchiveFile === 'function') {
+      const result = window.createStudioArchiveFile(label, content, byId('builder-target-pack')?.value || '');
+      if (!result.ok) { showBuilderNotice(result.error); return; }
+      await openLocalArchiveFile(result.file);
+      showBuilderNotice(`Added ${result.path}. Export the imported pack to download the updated archive.`);
+      return;
+    }
+    openScratch(label, content);
+    showBuilderNotice(typeof currentProject !== 'undefined' && currentProject
+      ? 'Generated as a scratch tab. The cloud project API does not currently expose file creation.'
+      : 'Generated as a scratch tab. Use File > Download Active File to save it locally.');
   }
 
   function safeNamespace(value) {
@@ -559,9 +626,8 @@
       header: { name, description: `A ${type === 'resources' ? 'resource' : 'behavior'} pack for Minecraft Bedrock Edition.`, uuid: createUuid(), version: [1, 0, 0], min_engine_version: [1, 20, 0] },
       modules: [module]
     };
-    openScratch('manifest.json', JSON.stringify(manifest, null, 2));
-    if (type === 'script') openScratch('scripts/main.js', `// Script entry starter for ${namespace}.\n// Before importing Bedrock APIs, declare @minecraft/server in manifest.dependencies\n// with the module version supported by your target game release.\nconsole.warn('${namespace}: script entry loaded');\n`);
-    showBuilderNotice('Generated a fresh manifest and opened it in a scratch tab.');
+    createOrOpenBuiltFile('manifest.json', JSON.stringify(manifest, null, 2));
+    if (type === 'script') createOrOpenBuiltFile('scripts/main.js', `// Script entry starter for ${namespace}.\n// Before importing Bedrock APIs, declare @minecraft/server in manifest.dependencies\n// with the module version supported by your target game release.\nconsole.warn('${namespace}: script entry loaded');\n`);
   }
   function functionId() {
     const raw = byId('builder-function-id').value.trim();
@@ -571,14 +637,12 @@
   }
   function makeTickJson() {
     const id = functionId();
-    openScratch('functions/tick.json', JSON.stringify({ values: [id] }, null, 2));
-    showBuilderNotice(`Generated functions/tick.json with the registration for ${id}.`);
+    createOrOpenBuiltFile('functions/tick.json', JSON.stringify({ values: [id] }, null, 2));
   }
   function makeTickFunction() {
     const id = functionId();
     const path = id.split(':').pop() || 'tick';
-    openScratch(`functions/${path}.mcfunction`, `# Runs every tick when registered in functions/tick.json.\n# Add commands below; remove this comment before shipping if you prefer.\n`);
-    showBuilderNotice(`Generated functions/${path}.mcfunction for ${id}.`);
+    createOrOpenBuiltFile(`functions/${path}.mcfunction`, `# Runs every tick when registered in functions/tick.json.\n# Add commands below; remove this comment before shipping if you prefer.\n`);
   }
   function showBuilderNotice(message) {
     const note = document.querySelector('#toolkit-body .builder-info:last-child');
@@ -602,7 +666,25 @@
 
   function toggleOutput() { byId('output-panel')?.classList.toggle('show'); }
   window.toggleStudioOutput = toggleOutput;
-  window.openStudioToolkit = () => setSidebarView('toolkit');
+  const toolsOverlay = byId('tools-overlay');
+  function closeStudioTools() {
+    toolsOverlay?.classList.remove('show');
+    toolsOverlay?.setAttribute('aria-hidden', 'true');
+  }
+  window.openStudioToolkit = function openStudioToolkit(tab = 'doctor') {
+    activeToolTab = ['doctor', 'functions', 'builder'].includes(tab) ? tab : 'doctor';
+    toolsOverlay?.classList.add('show');
+    toolsOverlay?.setAttribute('aria-hidden', 'false');
+    renderToolTab();
+    byId('tools-close')?.focus();
+  };
+  byId('tools-close')?.addEventListener('click', closeStudioTools);
+  toolsOverlay?.addEventListener('click', event => {
+    if (event.target === toolsOverlay) closeStudioTools();
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && toolsOverlay?.classList.contains('show')) closeStudioTools();
+  });
   window.downloadActiveStudioFile = function downloadActiveStudioFile() {
     const tab = document.querySelector('.tab.active');
     const entry = tab ? editors[tab.dataset.tab] : null;
