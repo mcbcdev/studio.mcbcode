@@ -183,7 +183,8 @@
     const sidebarTitle = document.getElementById('sidebar-title');
 
     if (!currentProject) {
-      // no project open yet — leave the default demo file-items alone
+      // no project open — the explorer's explicit empty state remains visible
+      if (typeof updateStudioStatus === 'function') updateStudioStatus();
       return;
     }
 
@@ -199,17 +200,23 @@
       collapsedFolders.clear();
       sidebarTitle.textContent = 'Explorer';
       sidebarContent.innerHTML = `
-        <div class="file-item" data-file="tab1" data-label="manifest.json" data-content="// manifest.json content goes here">manifest.json</div>
-        <div class="file-item" data-file="tab2" data-label="main.js" data-content="// main.js content goes here">main.js</div>
-        <div class="file-item" data-file="tab3" data-label="README.md" data-content="# README.md content goes here">README.md</div>
+        <div id="explorer-empty" class="explorer-empty">
+          <span class="explorer-empty-mark">//</span><strong>no workspace open</strong>
+          <p>open a local pack or an mcbCode project to browse its files here.</p>
+          <button class="view-button primary" id="explorer-open-pack">Open a pack</button>
+          <button class="view-button" id="explorer-open-cloud">Open mcbCode project</button>
+        </div>
       `;
-      attachDemoFileItemEvents();
+      if (typeof updateStudioStatus === 'function') updateStudioStatus();
+      if (typeof studioRefreshSidebarTitle === 'function') studioRefreshSidebarTitle();
     });
     sidebarContent.appendChild(backRow);
 
     const treeRoot = document.createElement('div');
     sidebarContent.appendChild(treeRoot);
     buildTreeLevel(treeRoot, null, 0);
+    if (typeof studioRefreshSidebarTitle === 'function') studioRefreshSidebarTitle();
+    if (typeof updateStudioStatus === 'function') updateStudioStatus();
   }
 
   function buildTreeLevel(container, parentId, depth) {
@@ -292,15 +299,5 @@
         ? String(f.id) === archiveFileId
         : (!!(saveId && f.save_id === saveId) || String(f.id) === cloudMediaFileId));
       row.classList.toggle('active', !!isActive);
-    });
-  }
-
-  // the demo file-items need their click handler re-attached every time they're
-  // rebuilt (e.g. after closing a project back to the default state)
-  function attachDemoFileItemEvents() {
-    document.querySelectorAll('#sidebar-content .file-item').forEach(file => {
-      file.addEventListener('click', () => {
-        openTab(file.dataset.file, file.dataset.label, file.dataset.content);
-      });
     });
   }

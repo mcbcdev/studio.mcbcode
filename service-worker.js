@@ -1,7 +1,19 @@
-const CACHE_NAME = 'studio-mcbcode-v2';
+const CACHE_NAME = 'studio-mcbcode-v3';
 const STATIC_ASSETS = [
   '/',
-  '/index.html'
+  '/index.html',
+  '/manifest.json',
+  '/css/studio.css',
+  '/js/app-core.js',
+  '/js/editor.js',
+  '/js/cloud-projects.js',
+  '/js/themes.js',
+  '/js/extensions.js',
+  '/js/layout.js',
+  '/js/bedrock-wiki.js',
+  '/js/local-files.js',
+  '/js/media-viewers.js',
+  '/js/studio-workbench.js'
 ];
 
 // Install: cache static assets

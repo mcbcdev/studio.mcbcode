@@ -578,22 +578,25 @@
 
       const isLintable = lintableFilename(label);
       const isMcfunction = modeForFilename(label) === 'mcfunction';
-      const gutters = isLintable
-        ? ['CodeMirror-linenumbers', 'CodeMirror-lint-markers']
-        : isMcfunction
-          ? ['CodeMirror-linenumbers', 'mcf-error-gutter']
-          : ['CodeMirror-linenumbers'];
+      const preferences = window.studioPreferences || {};
+      const configuredTabSize = preferences.tabSize === 'tab' || Number(preferences.tabSize) === 4 ? 4 : 2;
+      const gutters = [];
+      if (preferences.lineNumbers !== false) gutters.push('CodeMirror-linenumbers');
+      if (isLintable) gutters.push('CodeMirror-lint-markers');
+      if (isMcfunction) gutters.push('mcf-error-gutter');
 
       const cm = CodeMirror(editorWrap, {
         value: content,
         mode: modeForFilename(label),
-        lineNumbers: true,
+        lineNumbers: preferences.lineNumbers !== false,
+        lineWrapping: !!preferences.softWrap,
         theme: 'default',
         keyMap: 'sublime',        // unlocks multi-cursor shortcuts (see the Shortcuts menu)
         matchBrackets: true,
         styleActiveLine: true,
-        indentUnit: 2,
-        tabSize: 2,
+        indentUnit: configuredTabSize,
+        tabSize: configuredTabSize,
+        indentWithTabs: preferences.tabSize === 'tab',
         gutters,
         lint: isLintable ? { esversion: 11, asi: true, undef: false, unused: false } : false,
         extraKeys: {
@@ -607,9 +610,13 @@
           'Esc': () => closeFindReplace(id)
         }
       });
+      if (preferences.fontSize) cm.getWrapperElement().style.fontSize = `${preferences.fontSize}px`;
 
       editors[id] = { cm, saveId: saveId || null, fileId: fileId || null, projectCode: projectCode || null, localArchiveFile: localArchiveFile || null, dirty: false };
-      cm.on('change', () => markDirty(id, true));
+      cm.on('change', () => {
+        markDirty(id, true);
+        if (typeof refreshStudioSearch === 'function') refreshStudioSearch();
+      });
 
       if (isMcfunction) {
         mcfunctionEditors.add(cm);
@@ -627,6 +634,7 @@
     }
 
     activateTab(id);
+    if (typeof updateStudioStatus === 'function') updateStudioStatus();
   }
 
   // generates a unique tab id for files opened outside the sidebar (local files, new blank files, cloud files)
@@ -802,18 +810,10 @@
         if (wasActive) setActiveTreeFileByTabId('');
         updateWelcomeVisibility();
       }
+      if (typeof updateStudioStatus === 'function') updateStudioStatus();
+      if (typeof refreshStudioSearch === 'function') refreshStudioSearch();
     });
   }
-
-  // ================= sidebar: clicking a file opens/activates its tab =================
-  document.querySelectorAll('.file-item').forEach(file => {
-    file.addEventListener('click', () => {
-      const id = file.dataset.file;
-      const label = file.dataset.label;
-      const content = file.dataset.content;
-      openTab(id, label, content);
-    });
-  });
 
   updateWelcomeVisibility();
 
@@ -827,15 +827,6 @@
   });
   document.addEventListener('click', () => {
     accountPopup.classList.remove('show');
-  });
-
-  // ================= activity bar icons =================
-  document.querySelectorAll('.activity-icon[data-action="placeholder"]').forEach(icon => {
-    icon.addEventListener('click', () => {
-      document.querySelectorAll('.activity-icon[data-action="placeholder"]').forEach(i => i.classList.remove('active'));
-      icon.classList.add('active');
-      showPlaceholder();
-    });
   });
 
   // ================= welcome panel buttons =================

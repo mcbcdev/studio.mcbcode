@@ -33,11 +33,7 @@
     menuItems.forEach(m => m.classList.remove('open'));
   });
 
-  // File > New File / Open File / Save route to the real actions;
-  // everything else still shows the coming soon modal
-  document.querySelectorAll('[data-action="placeholder"]').forEach(el => {
-    el.addEventListener('click', () => showPlaceholder());
-  });
+  // File and Edit actions use the active CodeMirror buffer rather than placeholders.
   document.querySelector('[data-action="new-file"]').addEventListener('click', () => {
     const id = nextDynamicId();
     openTab(id, 'untitled', '');
@@ -48,19 +44,33 @@
   document.querySelector('[data-action="save-file"]').addEventListener('click', () => {
     saveActiveTab();
   });
+  document.querySelector('[data-action="download-file"]').addEventListener('click', () => downloadActiveStudioFile());
+  document.querySelector('[data-action="undo"]').addEventListener('click', () => runEditorHistoryAction('undo'));
+  document.querySelector('[data-action="redo"]').addEventListener('click', () => runEditorHistoryAction('redo'));
+  document.querySelector('[data-action="find-active"]').addEventListener('click', () => {
+    const tab = document.querySelector('.tab.active');
+    if (tab) openFindReplace(tab.dataset.tab, false);
+    else openFileChooserIfNoActiveTab();
+  });
+  document.querySelector('[data-action="toggle-sidebar"]').addEventListener('click', () => {
+    document.getElementById('sidebar-wrap').classList.toggle('collapsed');
+  });
+  document.querySelector('[data-action="toggle-output"]').addEventListener('click', () => toggleStudioOutput());
 
-  // extensions top-level menu item now opens the manager instead of the placeholder
+  function runEditorHistoryAction(action) {
+    const tab = document.querySelector('.tab.active');
+    const entry = tab && editors[tab.dataset.tab];
+    if (entry) entry.cm[action]();
+  }
+  function openFileChooserIfNoActiveTab() {
+    document.getElementById('openfile-overlay').classList.add('show');
+  }
+
+  // extension navigation opens the installed manager or marketplace
   document.querySelector('[data-action="open-extensions"]').addEventListener('click', () => openExtManager('installed'));
   document.querySelector('[data-action="open-marketplace"]').addEventListener('click', () => openExtManager('marketplace'));
   document.querySelector('[data-action="open-theme"]').addEventListener('click', () => openThemeModal());
   document.getElementById('activity-extensions-icon').addEventListener('click', () => openExtManager('installed'));
-
-  function showPlaceholder() {
-    document.getElementById('placeholder-overlay').classList.add('show');
-  }
-  document.getElementById('placeholder-close').addEventListener('click', () => {
-    document.getElementById('placeholder-overlay').classList.remove('show');
-  });
 
   // ================= keyboard shortcuts modal =================
   document.getElementById('shortcuts-btn').addEventListener('click', () => {
