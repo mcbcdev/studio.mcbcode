@@ -13,7 +13,7 @@ go to [studio.mcbcode](https://studio.mcbcode.com) and click the download icon o
 ## navigation and files
 
 - **quick open** (`ctrl/cmd+p`) searches files in the active project and open editor tabs.
-- **command palette** (`ctrl/cmd+shift+p`) runs editor, view, and Bedrock tool commands.
+- **command palette** (`ctrl/cmd+shift+p`) runs editor, navigation, and view commands.
 - the Explorer shows the active project's real file tree, or the tabs that are actually open. it shows **no files** when there is no project or open tab.
 - **open file → open .mcpack / .mcaddon** imports a temporary local workspace. imports stay in the browser and are not uploaded to mcbCode. PNG/TGA images and supported audio formats have read-only previews.
 
