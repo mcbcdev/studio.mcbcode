@@ -194,42 +194,6 @@ function buildArchiveTree(fileEntries, workspaceId) {
   return nodes;
 }
 
-function createStudioArchiveFile(path, content, targetPackPath) {
-  if (!currentProject || !currentProject.localArchive || !currentProject.workspace) {
-    return { ok: false, error: 'Open an imported pack before adding a file.' };
-  }
-  const workspace = currentProject.workspace;
-  const cleanPath = safeArchivePath(path);
-  if (!cleanPath || cleanPath.endsWith('/')) return { ok: false, error: 'Enter a valid file path.' };
-
-  let zip = workspace.outerZip;
-  let virtualPath = cleanPath;
-  if (workspace.extension === 'mcaddon') {
-    let nestedPack = workspace.nestedPacks.find(pack => pack.path === targetPackPath);
-    if (!nestedPack && workspace.nestedPacks.length === 1) nestedPack = workspace.nestedPacks[0];
-    if (!nestedPack) return { ok: false, error: 'Choose a pack inside this .mcaddon before adding files.' };
-    zip = nestedPack.zip;
-    virtualPath = safeArchivePath(`${nestedPack.path}/${cleanPath}`);
-  }
-  if (zip.file(cleanPath)) return { ok: false, error: `${cleanPath} already exists in the selected pack.` };
-
-  zip.file(cleanPath, String(content ?? ''));
-  const zipEntry = zip.file(cleanPath);
-  const entry = { virtualPath, zip, zipPath: cleanPath, zipEntry };
-  workspace.fileEntries.push(entry);
-  const previousFiles = new Map((workspace.files || []).filter(item => item.type === 'file').map(item => [item.virtualPath, item]));
-  workspace.files = buildArchiveTree(workspace.fileEntries, workspace.id).map(item => {
-    const previous = item.type === 'file' ? previousFiles.get(item.virtualPath) : null;
-    return previous ? Object.assign(previous, item) : item;
-  });
-  currentProject.files = workspace.files;
-  const file = workspace.files.find(item => item.type === 'file' && item.virtualPath === virtualPath);
-  window.renderStudioExplorer?.();
-  window.refreshStudioSearch?.();
-  return file ? { ok: true, file, path: virtualPath } : { ok: false, error: 'The file was added but could not be indexed.' };
-}
-window.createStudioArchiveFile = createStudioArchiveFile;
-
 function isTextPackFile(filename) {
   return /\.(json|js|ts|mcfunction|txt|md|lang|mcmeta|xml|molang|material|properties|csv|ya?ml|geo|animation|anim|shader|fsh|vsh|h|c|cpp)$/i.test(filename);
 }
