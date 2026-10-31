@@ -313,65 +313,6 @@ button.activity-icon:focus-visible {
 }
 #code-area.split-screen > .code-panel:not(.split-visible) { display: none; }
 
-.studio-context-menu {
-  position: fixed;
-  z-index: 4000;
-  display: none;
-  width: 236px;
-  max-width: calc(100vw - 12px);
-  max-height: calc(100vh - 12px);
-  overflow: auto;
-  padding: 6px;
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  color: var(--text-body);
-  background: var(--bg-4);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.48);
-  font-size: 12px;
-}
-.studio-context-menu[data-open="true"] { display: block; }
-.studio-context-menu [role="group"] { display: flex; flex-direction: column; gap: 2px; }
-.studio-context-menu [hidden] { display: none; }
-.studio-context-menu .context-divider { height: 1px; margin: 5px 3px; background: var(--border); }
-.studio-context-menu .context-heading { padding: 5px 8px 3px; color: var(--text-muted); font-size: 10px; }
-.studio-context-menu button {
-  display: flex;
-  width: 100%;
-  min-height: 30px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 6px 8px;
-  border: 0;
-  border-radius: 0;
-  color: var(--text-body);
-  background: transparent;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.studio-context-menu button:hover,
-.studio-context-menu button:focus-visible,
-.studio-context-menu .context-submenu:focus-within > button { color: var(--text-main); background: var(--bg-6); }
-.studio-context-menu button:disabled { color: var(--text-muted); cursor: not-allowed; }
-.studio-context-menu .context-submenu { position: relative; }
-.studio-context-menu .context-submenu-panel {
-  position: fixed;
-  top: 0;
-  left: 0;
-  display: none;
-  width: 190px;
-  padding: 6px;
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  background: var(--bg-4);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.48);
-}
-.studio-context-menu .context-submenu:hover .context-submenu-panel,
-.studio-context-menu .context-submenu:focus-within .context-submenu-panel,
-.studio-context-menu .context-submenu[data-expanded="true"] .context-submenu-panel { display: block; }
-.studio-context-menu .context-shortcut { color: var(--text-muted); font-size: 10px; }
-
 @media (max-width: 640px) {
   #code-area.split-screen { flex-direction: column; }
   #code-area.split-screen > .code-panel.split-visible {

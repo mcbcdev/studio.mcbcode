@@ -1,9 +1,79 @@
 (() => {
+  const contextMenuStyles = document.createElement('style');
+  contextMenuStyles.id = 'studio-context-menu-styles';
+  contextMenuStyles.textContent = `
+    #studio-context-menu {
+      position: fixed;
+      z-index: 4000;
+      display: none;
+      width: 236px;
+      max-width: calc(100vw - 12px);
+      max-height: calc(100vh - 12px);
+      overflow: auto;
+      box-sizing: border-box;
+      padding: 6px;
+      border: 1px solid var(--border-strong, #47505c);
+      border-radius: 6px;
+      color: var(--text-body, #e6e6e6);
+      background: var(--bg-4, #23262b);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.48);
+      font: 12px var(--font-mono, monospace);
+    }
+    #studio-context-menu[data-open="true"] { display: block; }
+    #studio-context-menu[hidden] { display: none !important; }
+    #studio-context-menu [role="group"] { display: flex; flex-direction: column; gap: 2px; }
+    #studio-context-menu [hidden] { display: none; }
+    #studio-context-menu .context-divider { height: 1px; margin: 5px 3px; background: var(--border, #3a4048); }
+    #studio-context-menu .context-heading { padding: 5px 8px 3px; color: var(--text-muted, #9aa4af); font-size: 10px; }
+    #studio-context-menu button {
+      display: flex;
+      width: 100%;
+      min-height: 30px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 6px 8px;
+      border: 0;
+      border-radius: 0;
+      color: var(--text-body, #e6e6e6);
+      background: transparent;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+    #studio-context-menu button:hover,
+    #studio-context-menu button:focus-visible,
+    #studio-context-menu .context-submenu:focus-within > button {
+      color: var(--text-main, #fff);
+      background: var(--bg-6, #343941);
+    }
+    #studio-context-menu button:disabled { color: var(--text-muted, #888); cursor: not-allowed; }
+    #studio-context-menu .context-submenu { position: relative; }
+    #studio-context-menu .context-submenu-panel {
+      position: fixed;
+      top: 0;
+      left: 0;
+      display: none;
+      width: 190px;
+      padding: 6px;
+      border: 1px solid var(--border-strong, #47505c);
+      border-radius: 6px;
+      background: var(--bg-4, #23262b);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.48);
+    }
+    #studio-context-menu .context-submenu:hover .context-submenu-panel,
+    #studio-context-menu .context-submenu:focus-within .context-submenu-panel,
+    #studio-context-menu .context-submenu[data-expanded="true"] .context-submenu-panel { display: block; }
+    #studio-context-menu .context-shortcut { color: var(--text-muted, #9aa4af); font-size: 10px; }
+  `;
+  document.head.appendChild(contextMenuStyles);
+
   const menu = document.createElement('div');
   menu.id = 'studio-context-menu';
   menu.className = 'studio-context-menu';
   menu.dataset.open = 'false';
   menu.hidden = true;
+  menu.style.display = 'none';
   menu.setAttribute('aria-hidden', 'true');
   menu.setAttribute('role', 'menu');
   menu.setAttribute('aria-label', 'studio actions');
@@ -64,6 +134,7 @@
   function hideMenu(restoreFocus = false) {
     if (menu.dataset.open !== 'true') return;
     menu.dataset.open = 'false';
+    menu.style.display = 'none';
     menu.hidden = true;
     menu.setAttribute('aria-hidden', 'true');
     menu.querySelector('.context-submenu')?.removeAttribute('data-expanded');
@@ -76,6 +147,7 @@
     menu.dataset.scope = scope;
     menu.dataset.open = 'true';
     menu.hidden = false;
+    menu.style.display = 'block';
     menu.setAttribute('aria-hidden', 'false');
     menu.querySelector('[data-context-title]').textContent = scope === 'tab'
       ? (document.querySelector(`.tab[data-tab="${CSS.escape(tabId)}"] .tab-label`)?.textContent || 'tab actions')
@@ -93,13 +165,21 @@
 
     menu.style.left = '0px';
     menu.style.top = '0px';
+    menu.style.maxHeight = 'calc(100vh - 12px)';
     const isKeyboard = event.clientX === 0 && event.clientY === 0;
     const targetRect = event.target instanceof Element ? event.target.getBoundingClientRect() : null;
     const requestedX = isKeyboard && targetRect ? targetRect.left : event.clientX;
     const requestedY = isKeyboard && targetRect ? targetRect.bottom : event.clientY;
+    const initialRect = menu.getBoundingClientRect();
+    const spaceBelow = Math.max(0, window.innerHeight - requestedY - 6);
+    const spaceAbove = Math.max(0, requestedY - 6);
+    const openAbove = spaceBelow < initialRect.height && spaceAbove > spaceBelow;
+    const maxHeight = Math.max(120, Math.min(window.innerHeight - 12, openAbove ? spaceAbove : spaceBelow));
+    menu.style.maxHeight = `${maxHeight}px`;
     const menuRect = menu.getBoundingClientRect();
     const x = Math.max(6, Math.min(requestedX, window.innerWidth - menuRect.width - 6));
-    const y = Math.max(6, Math.min(requestedY, window.innerHeight - menuRect.height - 6));
+    const requestedTop = openAbove ? requestedY - menuRect.height : requestedY;
+    const y = Math.max(6, Math.min(requestedTop, window.innerHeight - menuRect.height - 6));
     menu.style.left = `${x}px`;
     menu.style.top = `${y}px`;
 
