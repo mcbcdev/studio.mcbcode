@@ -351,7 +351,7 @@
     entry.dirty = dirty;
     if (dirty && entry.localArchiveFile) entry.localArchiveFile.workspace.hasChanges = true;
     const tab = document.querySelector(`.tab[data-tab="${id}"]`);
-    if (tab) tab.classList.toggle('dirty', dirty);
+    if (tab) tab.classList.toggle('dirty', !!(dirty && entry.saveId));
     const dot = document.querySelector(`.code-panel[data-panel="${id}"] .save-state-dot`);
     if (dot) dot.classList.toggle('unsaved', dirty);
   }
@@ -681,6 +681,7 @@
   }
 
   function attachTabEvents(tab) {
+    tab.draggable = true;
     tab.addEventListener('click', (e) => {
       if (e.target.classList.contains('close-btn')) return;
       if (e.target.isContentEditable) return;
@@ -835,6 +836,7 @@
       const panel = document.querySelector(`.code-panel[data-panel="${id}"]`);
       const wasActive = tab.classList.contains('active');
 
+      window.studioRemoveSplitTab?.(id);
       tab.remove();
       if (panel) panel.remove();
       if (entry) {
@@ -847,7 +849,10 @@
       document.querySelector(`.file-item[data-file="${id}"]`)?.classList.remove('active');
 
       // if the closed tab was active, activate the first remaining tab
-      const nextTab = document.querySelector('.tab');
+      const splitTabs = window.studioGetSplitTabs?.() || [];
+      const nextTab = splitTabs.length
+        ? document.querySelector(`.tab[data-tab="${CSS.escape(splitTabs[0])}"]`)
+        : document.querySelector('.tab');
       if (wasActive && nextTab) {
         activateTab(nextTab.dataset.tab);
       } else {
@@ -880,8 +885,10 @@
     e.stopPropagation();
     accountPopup.classList.toggle('show');
   });
-  document.addEventListener('click', () => {
-    accountPopup.classList.remove('show');
+  document.addEventListener('click', (event) => {
+    if (!accountPopup.contains(event.target) && !accountIcon.contains(event.target)) {
+      accountPopup.classList.remove('show');
+    }
   });
 
   // ================= welcome panel buttons =================
@@ -915,12 +922,14 @@
     openTab(id, 'untitled', '');
   });
 
-  window.studioRunEditorCommand = function (command) {
-    const tab = document.querySelector('.tab.active');
+  window.studioRunEditorCommand = function (command, id) {
+    const tab = id ? document.querySelector(`.tab[data-tab="${CSS.escape(id)}"]`) : document.querySelector('.tab.active');
     const entry = tab ? editors[tab.dataset.tab] : null;
-    if (entry && ['undo', 'redo'].includes(command)) entry.cm.execCommand(command);
+    if (entry && ['undo', 'redo', 'selectAll'].includes(command)) entry.cm.execCommand(command);
   };
-  window.studioOpenActiveFind = function () {
-    const tab = document.querySelector('.tab.active');
+  window.studioGetEditor = id => editors[id]?.cm || null;
+  window.studioSaveTab = id => saveTab(id);
+  window.studioOpenActiveFind = function (id) {
+    const tab = id ? document.querySelector(`.tab[data-tab="${CSS.escape(id)}"]`) : document.querySelector('.tab.active');
     if (tab) openFindReplace(tab.dataset.tab, false);
   };

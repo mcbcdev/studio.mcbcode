@@ -287,6 +287,102 @@ button.activity-icon:focus-visible {
   animation: studio-panel-in 0.2s ease-in-out both;
 }
 
+/* hover menus, tab movement, split editors, and contextual actions */
+.menu-item:hover .menu-dropdown,
+.menu-item:focus-within .menu-dropdown {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.tab.dragging { opacity: 0.45; }
+.tab.drag-over { box-shadow: inset 2px 0 var(--accent); }
+.tab.split-member:not(.active) { box-shadow: inset 0 -2px var(--accent-dim); }
+
+#code-area.split-screen {
+  display: flex;
+  min-width: 0;
+  flex-direction: row;
+}
+#code-area.split-screen > .code-panel.split-visible {
+  display: flex;
+  width: 0;
+  min-width: 0;
+  flex: 1 1 0;
+  border-right: 1px solid var(--border-strong);
+}
+#code-area.split-screen > .code-panel:not(.split-visible) { display: none; }
+
+.studio-context-menu {
+  position: fixed;
+  z-index: 4000;
+  display: none;
+  width: 236px;
+  max-width: calc(100vw - 12px);
+  max-height: calc(100vh - 12px);
+  overflow: auto;
+  padding: 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  color: var(--text-body);
+  background: var(--bg-4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.48);
+  font-size: 12px;
+}
+.studio-context-menu[data-open="true"] { display: block; }
+.studio-context-menu [role="group"] { display: flex; flex-direction: column; gap: 2px; }
+.studio-context-menu [hidden] { display: none; }
+.studio-context-menu .context-divider { height: 1px; margin: 5px 3px; background: var(--border); }
+.studio-context-menu .context-heading { padding: 5px 8px 3px; color: var(--text-muted); font-size: 10px; }
+.studio-context-menu button {
+  display: flex;
+  width: 100%;
+  min-height: 30px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 0;
+  color: var(--text-body);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.studio-context-menu button:hover,
+.studio-context-menu button:focus-visible,
+.studio-context-menu .context-submenu:focus-within > button { color: var(--text-main); background: var(--bg-6); }
+.studio-context-menu button:disabled { color: var(--text-muted); cursor: not-allowed; }
+.studio-context-menu .context-submenu { position: relative; }
+.studio-context-menu .context-submenu-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  display: none;
+  width: 190px;
+  padding: 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg-4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.48);
+}
+.studio-context-menu .context-submenu:hover .context-submenu-panel,
+.studio-context-menu .context-submenu:focus-within .context-submenu-panel,
+.studio-context-menu .context-submenu[data-expanded="true"] .context-submenu-panel { display: block; }
+.studio-context-menu .context-shortcut { color: var(--text-muted); font-size: 10px; }
+
+@media (max-width: 640px) {
+  #code-area.split-screen { flex-direction: column; }
+  #code-area.split-screen > .code-panel.split-visible {
+    width: 100%;
+    height: 0;
+    min-height: 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--border-strong);
+  }
+}
+
 :where(button, input, select, textarea, [role="button"]):focus-visible {
   outline: 1px solid var(--accent);
   outline-offset: 2px;

@@ -273,8 +273,8 @@
   syncPreferenceControls();
   syncBedrockProfileControls();
 
-  window.downloadActiveStudioFile = function downloadActiveStudioFile() {
-    const tab = document.querySelector('.tab.active');
+  window.downloadActiveStudioFile = function downloadActiveStudioFile(id) {
+    const tab = id ? document.querySelector(`.tab[data-tab="${CSS.escape(id)}"]`) : document.querySelector('.tab.active');
     const entry = tab ? editors[tab.dataset.tab] : null;
     if (!tab || !entry) { alert('Open a text file before downloading.'); return; }
     const label = tab.querySelector('.tab-label')?.textContent || 'untitled.txt';

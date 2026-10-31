@@ -16,21 +16,37 @@
   }
 
   // ================= menu bar dropdowns =================
-  // only menu items with an actual dropdown inside toggle open/close
   const menuItems = document.querySelectorAll('.menu-item:has(.menu-dropdown)');
 
+  function openMenu(item) {
+    menuItems.forEach(menu => {
+      const isOpen = menu === item;
+      menu.classList.toggle('open', isOpen);
+      menu.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    });
+  }
+
+  function closeMenu(item) {
+    item.classList.remove('open');
+    item.setAttribute('aria-expanded', 'false');
+  }
+
   menuItems.forEach(item => {
-    item.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const wasOpen = item.classList.contains('open');
-      menuItems.forEach(m => m.classList.remove('open'));
-      if (!wasOpen) item.classList.add('open');
+    item.tabIndex = 0;
+    item.setAttribute('aria-haspopup', 'true');
+    item.setAttribute('aria-expanded', 'false');
+    item.addEventListener('mouseenter', () => openMenu(item));
+    item.addEventListener('mouseleave', () => closeMenu(item));
+    item.addEventListener('focusin', () => openMenu(item));
+    item.addEventListener('focusout', event => {
+      if (!item.contains(event.relatedTarget)) closeMenu(item);
     });
   });
 
-  // close menus when clicking anywhere else
-  document.addEventListener('click', () => {
-    menuItems.forEach(m => m.classList.remove('open'));
+  // close hover menus after choosing an action or clicking away
+  document.addEventListener('click', event => {
+    if (event.target.closest?.('.menu-item')) return;
+    menuItems.forEach(closeMenu);
   });
 
   // File, editor, and view commands route to their active workspace actions.
@@ -155,6 +171,7 @@
   const tabBar = document.getElementById('tab-bar');
   const codeArea = document.getElementById('code-area');
   const welcomePanel = document.getElementById('welcome-panel');
+  const splitTabIds = [];
 
   function updateWelcomeVisibility() {
     const anyTabs = document.querySelectorAll('.tab').length > 0;
@@ -162,7 +179,20 @@
   }
 
   // ================= tabs: switching =================
+  function renderSplitPanels() {
+    const isSplit = splitTabIds.length > 1;
+    codeArea.classList.toggle('split-screen', isSplit);
+    codeArea.dataset.splitCount = String(isSplit ? splitTabIds.length : 1);
+    document.querySelectorAll('.code-panel').forEach(panel => {
+      panel.classList.toggle('split-visible', isSplit && splitTabIds.includes(panel.dataset.panel));
+    });
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.classList.toggle('split-member', isSplit && splitTabIds.includes(tab.dataset.tab));
+    });
+  }
+
   function activateTab(id) {
+    if (splitTabIds.length > 1 && !splitTabIds.includes(id)) splitTabIds.splice(0);
     document.querySelectorAll('.tab').forEach(t => {
       t.classList.toggle('active', t.dataset.tab === id);
     });
@@ -175,19 +205,68 @@
     if (typeof setActiveTreeFileByTabId === 'function') setActiveTreeFileByTabId(id);
     updateWelcomeVisibility();
     if (typeof currentProject === 'undefined' || !currentProject) window.renderStudioExplorer?.();
+    renderSplitPanels();
 
     // CodeMirror sizes itself based on its container at creation time, so a fresh
     // instance mounted while its tab was hidden renders broken until this is called
     const entry = editors[id];
-    if (entry) {
+    if (entry || splitTabIds.length > 1) {
+      const visibleIds = splitTabIds.length > 1 ? [...splitTabIds] : [id];
       setTimeout(() => {
-        entry.cm.refresh();
+        visibleIds.forEach(tabId => editors[tabId]?.cm.refresh());
         // don't steal focus if a tab label is mid-rename (e.g. the two click events that
         // precede a dblclick both call activateTab, and would otherwise blur the label
         // the instant the rename starts)
         if (!document.activeElement || !document.activeElement.isContentEditable) {
-          entry.cm.focus();
+          editors[id]?.cm.focus();
         }
       }, 0);
     }
   }
+  window.activateTab = activateTab;
+
+  function splitTab(id) {
+    if (!document.querySelector(`.tab[data-tab="${CSS.escape(id)}"]`)) return false;
+    if (!splitTabIds.length) {
+      const activeId = document.querySelector('.tab.active')?.dataset.tab;
+      const otherId = activeId && activeId !== id
+        ? activeId
+        : [...document.querySelectorAll('.tab')].map(tab => tab.dataset.tab).find(tabId => tabId !== id);
+      if (!otherId) return false;
+      splitTabIds.push(otherId);
+    }
+    if (!splitTabIds.includes(id)) {
+      if (splitTabIds.length >= 3) return false;
+      splitTabIds.push(id);
+    }
+    activateTab(id);
+    return splitTabIds.length > 1;
+  }
+  window.studioSplitTab = splitTab;
+
+  window.studioRemoveSplitTab = id => {
+    const index = splitTabIds.indexOf(id);
+    if (index < 0) return;
+    splitTabIds.splice(index, 1);
+    if (splitTabIds.length < 2) splitTabIds.splice(0);
+    renderSplitPanels();
+  };
+  window.studioGetSplitTabs = () => [...splitTabIds];
+
+  window.studioExitSplitView = () => {
+    splitTabIds.splice(0);
+    renderSplitPanels();
+    const active = document.querySelector('.tab.active')?.dataset.tab;
+    if (active) activateTab(active);
+  };
+
+  document.addEventListener('keydown', event => {
+    if (!event.ctrlKey || event.metaKey || event.altKey || event.key !== 'Tab') return;
+    const tabs = [...document.querySelectorAll('#tab-bar .tab')];
+    if (tabs.length < 2) return;
+    event.preventDefault();
+    const currentIndex = tabs.findIndex(tab => tab.classList.contains('active'));
+    const direction = event.shiftKey ? -1 : 1;
+    const nextIndex = (currentIndex + direction + tabs.length) % tabs.length;
+    activateTab(tabs[nextIndex].dataset.tab);
+  }, true);
