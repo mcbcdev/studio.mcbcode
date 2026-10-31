@@ -242,7 +242,6 @@
       const gutters = [];
       if (prefs.lineNumbers) gutters.push('CodeMirror-linenumbers');
       if (typeof lintableFilename === 'function' && lintableFilename(label)) gutters.push('CodeMirror-lint-markers');
-      if (label.toLowerCase().endsWith('.mcfunction')) gutters.push('mcf-error-gutter');
       cm.setOption('gutters', gutters);
       cm.setOption('lineWrapping', prefs.softWrap);
       cm.getWrapperElement().style.fontSize = `${prefs.fontSize}px`;

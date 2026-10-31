@@ -21,6 +21,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/markdown/markdown.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/shell/shell.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/mode/loadmode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/meta.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/searchcursor.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
@@ -799,25 +801,6 @@
     .code-editor .CodeMirror-lint-marker-error {
       background: none;
     }
-    .code-editor .CodeMirror-gutter.mcf-error-gutter {
-      width: 14px;
-    }
-    .mcf-gutter-marker {
-      color: #ff4d4d;
-      font-size: 10px;
-      line-height: 1.6;
-      text-align: center;
-      cursor: help;
-    }
-
-  .code-editor .hl-command { color: var(--syn-keyword); }
-    .code-editor .hl-selector { color: var(--syn-atom); }
-    .code-editor .hl-word { color: var(--syn-def); }
-    .code-editor .hl-item { color: var(--syn-string); }
-    .code-editor .hl-number { color: var(--syn-number); }
-    .code-editor .hl-comment { color: var(--syn-comment); font-style: italic; }
-    .code-editor .hl-colorcode { color: var(--syn-property); }
-    .code-editor .hl-error { color: #ff6b6b; text-decoration: underline wavy #ff4d4d; }
     .code-editor .cm-mcf-command { color: var(--syn-keyword); }
     .code-editor .cm-mcf-selector { color: var(--syn-atom); }
     .code-editor .cm-mcf-item { color: var(--syn-string); }

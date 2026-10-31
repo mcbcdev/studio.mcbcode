@@ -1,11 +1,12 @@
 // ================= CodeMirror + cloud-file tracking =================
+  CodeMirror.modeURL = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/%N/%N.min.js';
+
   // one entry per open tab id: { cm, saveId, dirty, fileId, projectCode }
   // saveId/fileId/projectCode are only set for files opened from the cloud browser —
   // that's what ties Ctrl+S and renaming back to the right database row.
   const editors = {};
 
-  // tracks which CodeMirror instances are currently editing a .mcfunction file, so the
-  // gutter-refresh logic below only ever runs against real mcfunction editors
+  // tracks mcfunction editors so command completions only run for matching tabs
   const mcfunctionEditors = new Set();
 
   // lightweight .mcfunction linter — not a full command parser (that needs real per-command
@@ -102,19 +103,21 @@
     };
   });
 
-  // called when a .mcfunction tab opens, then again after edits
-  function updateMcfErrorGutter(cm) {
-    if (!mcfunctionEditors.has(cm)) return;
-    cm.clearGutter('mcf-error-gutter');
-    for (let i = 0; i < cm.lineCount(); i++) {
-      const issue = checkMcfunctionLine(cm.getLine(i) || '');
-      if (!issue) continue;
-      const marker = document.createElement('div');
-      marker.className = 'mcf-gutter-marker';
-      marker.title = issue;
-      marker.textContent = '\u25cf';
-      cm.setGutterMarker(i, 'mcf-error-gutter', marker);
-    }
+  function mcfunctionDiagnostics(text) {
+    return String(text || '').split('\n').flatMap((line, index) => {
+      const message = checkMcfunctionLine(line);
+      if (!message) return [];
+      return [{
+        from: CodeMirror.Pos(index, 0),
+        to: CodeMirror.Pos(index, Math.max(1, line.length)),
+        message,
+        severity: 'error'
+      }];
+    });
+  }
+
+  function mcfunctionFilename(name) {
+    return /\.mcfunction$/i.test(String(name || ''));
   }
 
   // grammar.js calls this after a command grammar request to refresh any open completions.
@@ -122,7 +125,6 @@
     clearTimeout(window._mcfRehighlightTimer);
     window._mcfRehighlightTimer = setTimeout(() => {
       mcfunctionEditors.forEach(cm => {
-        updateMcfErrorGutter(cm);
         maybeShowMcfunctionHint(cm);
       });
     }, 100);
@@ -287,21 +289,60 @@
     }, 60);
   }
 
-  // picks a syntax mode based on the file's extension, defaults to plain js-ish highlighting
-  function modeForFilename(name) {
-    const ext = (name.split('.').pop() || '').toLowerCase();
-    if (ext === 'md') return 'markdown';
-    if (ext === 'json') return { name: 'javascript', json: true };
-    if (ext === 'mcfunction') return 'mcfunction'; // custom mode, defined further down
-    if (ext === 'sh' || ext === 'txt') return 'shell';
-    return 'javascript';
+  function modeDetailsForFilename(name) {
+    const filename = String(name || '').split(/[\\/]/).pop() || '';
+    const ext = (filename.split('.').pop() || '').toLowerCase();
+    if (ext === 'mcfunction') return { mode: 'mcfunction', spec: 'mcfunction' };
+    if (ext === 'json') return { mode: 'javascript', spec: { name: 'javascript', json: true } };
+
+    const match = typeof CodeMirror.findModeByFileName === 'function'
+      ? CodeMirror.findModeByFileName(filename)
+      : null;
+    if (!match || !match.mode || match.mode === 'null') return { mode: 'null', spec: 'text/plain' };
+    return { mode: match.mode, spec: match.mime || match.mode };
   }
 
-  // js/json get real error-squiggle linting (via JSHint); other modes don't have
-  // a meaningful linter wired up here, so leave them without the gutter
+  // Use CodeMirror's full mode catalog rather than treating unrecognized files as JavaScript.
+  function modeForFilename(name) {
+    return modeDetailsForFilename(name).spec;
+  }
+
+  function lintOptionsForFilename(name) {
+    if (mcfunctionFilename(name)) {
+      return { getAnnotations: text => mcfunctionDiagnostics(text), async: false };
+    }
+    return lintableFilename(name)
+      ? { esversion: 11, asi: true, undef: false, unused: false }
+      : false;
+  }
+
+  function applyFilenameToEditor(id, cm, name) {
+    const details = modeDetailsForFilename(name);
+    cm.setOption('mode', details.spec);
+    if (details.mode !== 'null' && details.mode !== 'mcfunction' && typeof CodeMirror.autoLoadMode === 'function') {
+      CodeMirror.autoLoadMode(cm, details.mode);
+    }
+
+    const isMcfunction = details.mode === 'mcfunction';
+    if (isMcfunction) {
+      mcfunctionEditors.add(cm);
+    } else {
+      mcfunctionEditors.delete(cm);
+      if (cm.state.completionActive) cm.state.completionActive.close();
+    }
+
+    const preferences = window.studioPreferences || { lineNumbers: true };
+    const gutters = [];
+    if (preferences.lineNumbers) gutters.push('CodeMirror-linenumbers');
+    if (lintableFilename(name)) gutters.push('CodeMirror-lint-markers');
+    cm.setOption('gutters', gutters);
+    cm.setOption('lint', lintOptionsForFilename(name));
+  }
+
+  // JavaScript/JSON use JSHint; .mcfunction uses the conservative Bedrock checks above.
   function lintableFilename(name) {
     const ext = (name.split('.').pop() || '').toLowerCase();
-    return ext === 'js' || ext === 'json' || ext === '';
+    return ext === 'js' || ext === 'json' || ext === '' || ext === 'mcfunction';
   }
 
   function markDirty(id, dirty) {
@@ -577,13 +618,11 @@
       codeArea.appendChild(panel);
 
       const isLintable = lintableFilename(label);
-      const isMcfunction = modeForFilename(label) === 'mcfunction';
       const preferences = window.studioPreferences || { fontSize: 14, tabSize: 2, lineNumbers: true, softWrap: false };
       const tabSize = preferences.tabSize === 'tab' ? 4 : Number(preferences.tabSize) || 2;
       const gutters = [];
       if (preferences.lineNumbers) gutters.push('CodeMirror-linenumbers');
       if (isLintable) gutters.push('CodeMirror-lint-markers');
-      if (isMcfunction) gutters.push('mcf-error-gutter');
 
       const cm = CodeMirror(editorWrap, {
         value: content,
@@ -598,7 +637,7 @@
         indentWithTabs: preferences.tabSize === 'tab',
         lineWrapping: preferences.softWrap,
         gutters,
-        lint: isLintable ? { esversion: 11, asi: true, undef: false, unused: false } : false,
+        lint: false,
         extraKeys: {
           'Shift-Tab': 'indentLess',
           'Ctrl-S': () => saveTab(id),
@@ -613,6 +652,7 @@
 
       cm.getWrapperElement().style.fontSize = `${preferences.fontSize || 14}px`;
       editors[id] = { cm, saveId: saveId || null, fileId: fileId || null, projectCode: projectCode || null, localArchiveFile: localArchiveFile || null, dirty: false };
+      applyFilenameToEditor(id, cm, label);
       window.studioBedrockEditorReady?.(id, cm, label);
       window.studioGeometryEditorReady?.(id, cm, label, panel);
       cm.on('change', () => {
@@ -621,15 +661,7 @@
         window.refreshStudioSearch?.();
       });
 
-      if (isMcfunction) {
-        mcfunctionEditors.add(cm);
-        setTimeout(() => updateMcfErrorGutter(cm), 0);
-        cm.on('changes', () => {
-          clearTimeout(cm._mcfGutterTimer);
-          cm._mcfGutterTimer = setTimeout(() => updateMcfErrorGutter(cm), 250);
-        });
-        cm.on('inputRead', () => maybeShowMcfunctionHint(cm));
-      }
+      cm.on('inputRead', () => maybeShowMcfunctionHint(cm));
 
       attachTabEvents(tab);
       attachCloseEvent(tab.querySelector('.close-btn'));
@@ -741,6 +773,7 @@
       window.renderStudioExplorer?.();
 
       const entry = editors[id];
+      if (entry) applyFilenameToEditor(id, entry.cm, newName);
       if (!entry || !entry.fileId || !entry.projectCode) return; // not a cloud file, local rename only
 
       try {
@@ -764,6 +797,11 @@
         renderSidebarTree();
       } catch (err) {
         labelEl.textContent = originalName; // revert on failure
+        if (fileItem) {
+          fileItem.textContent = originalName;
+          fileItem.dataset.label = originalName;
+        }
+        if (entry) applyFilenameToEditor(id, entry.cm, originalName);
         alert("Couldn't rename that file: " + err.message);
       }
     }
@@ -801,7 +839,6 @@
       if (panel) panel.remove();
       if (entry) {
         mcfunctionEditors.delete(entry.cm);
-        clearTimeout(entry.cm._mcfGutterTimer);
         entry.geometryPreview?.dispose?.();
       }
       if (typeof disposeMediaTab === 'function') disposeMediaTab(id);
