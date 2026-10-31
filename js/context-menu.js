@@ -3,6 +3,8 @@
   menu.id = 'studio-context-menu';
   menu.className = 'studio-context-menu';
   menu.dataset.open = 'false';
+  menu.hidden = true;
+  menu.setAttribute('aria-hidden', 'true');
   menu.setAttribute('role', 'menu');
   menu.setAttribute('aria-label', 'studio actions');
   menu.tabIndex = -1;
@@ -62,6 +64,8 @@
   function hideMenu(restoreFocus = false) {
     if (menu.dataset.open !== 'true') return;
     menu.dataset.open = 'false';
+    menu.hidden = true;
+    menu.setAttribute('aria-hidden', 'true');
     menu.querySelector('.context-submenu')?.removeAttribute('data-expanded');
     menu.querySelector('[data-submenu-toggle]')?.setAttribute('aria-expanded', 'false');
     if (restoreFocus && context.returnFocus?.isConnected) context.returnFocus.focus();
@@ -71,6 +75,8 @@
     context = { scope, tabId, returnFocus: document.activeElement };
     menu.dataset.scope = scope;
     menu.dataset.open = 'true';
+    menu.hidden = false;
+    menu.setAttribute('aria-hidden', 'false');
     menu.querySelector('[data-context-title]').textContent = scope === 'tab'
       ? (document.querySelector(`.tab[data-tab="${CSS.escape(tabId)}"] .tab-label`)?.textContent || 'tab actions')
       : scope === 'tabbar' ? 'tab bar actions' : 'studio actions';
